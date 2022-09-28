@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+
+	<settings>
+		<setting name="mapUnderscoreToCamelCase" value="true"/>
+	</settings>
+
+	<typeAliases>
+		<typeAlias type="java.lang.String" alias="str" />
+		<typeAlias type="java.lang.Integer" alias="int" />
+		<typeAlias type="java.util.List" alias="list" />
+		<typeAlias type="java.util.Map" alias="map" />
+		<typeAlias type="java.util.Date" alias="date" />
+		
+		
+		<typeAlias type="com.joinwork.common.dto.MenuVO" alias="menu" />
+		<typeAlias type="com.joinwork.common.dto.TimeVO" alias="time" />
+				
+		<typeAlias type="com.joinwork.emp.dto.EmpVO" alias="emp" />
+		<typeAlias type="com.joinwork.board.notice.dto.NoticeVO" alias="notice" />
+		<typeAlias type="com.joinwork.board.notice.dto.NoticeAttachVO" alias="noticeAttach" />
+		<typeAlias type="com.joinwork.board.cac.dto.CacVO" alias="cac" />
+		<typeAlias type="com.joinwork.board.anony.dto.AnonyVO" alias="anony" />
+		<typeAlias type="com.joinwork.board.anony.dto.AnonyReplyVO" alias="anonyReply" />
+		
+		<typeAlias type="com.joinwork.board.duty.dto.DutyVO" alias="duty" />
+		<typeAlias type="com.joinwork.board.duty.command.DutyManagerCommand" alias="dutyManager" />
+		<typeAlias type="com.joinwork.board.duty.command.DutyReceptionCommand" alias="dutyReceptioner" />
+		<typeAlias type="com.joinwork.board.duty.command.DutyReceptionDeptCommand" alias="dutyReceptionDept" />
+		<typeAlias type="com.joinwork.board.duty.dto.DutyAttachVO" alias="dutyAttach" />
+		<typeAlias type="com.joinwork.board.duty.dto.DutyReplyVO" alias="dutyReply" />
+		
+		<typeAlias type="com.joinwork.board.issue.dto.IssueVO" alias="issue" />
+		<typeAlias type="com.joinwork.board.issue.dto.IssueReplyVO" alias="issueReply" />
+		<typeAlias type="com.joinwork.board.issue.dto.MilestoneVO" alias="milestone" />
+		
+		<typeAlias type="com.joinwork.doc.dto.DocAttachVO" alias="docAttach" />
+		
+
+		
+		<typeAlias type="com.joinwork.approval.dto.FormVO" alias="form" />
+		<typeAlias type="com.joinwork.approval.dto.ApprovalVO" alias="approval" />
+		<typeAlias type="com.joinwork.approval.dto.ApprovalHistoryVO" alias="approvalHistory" />
+		<typeAlias type="com.joinwork.approval.dto.ApprovalSaveVO" alias="approvalSave" />
+		<typeAlias type="com.joinwork.approval.dto.ApprovalLineVO" alias="approvalLine" />
+		<typeAlias type="com.joinwork.approval.dto.ApprovalAttachVO" alias="approvalAttach" />
+		<typeAlias type="com.joinwork.approval.dto.AgencyVO" alias="agency" />
+
+ 		
+		<typeAlias type="com.joinwork.board.qt.dto.QtVO" alias="qt" />
+		<typeAlias type="com.joinwork.board.qt.dto.ItemVO" alias="item" />
+
+
+		<typeAlias type="com.joinwork.reservation.dto.ReservationComplainVO" alias="complain" />
+		<typeAlias type="com.joinwork.reservation.dto.MeetRoomVO" alias="meetRoom" />
+		<typeAlias type="com.joinwork.reservation.dto.ReservationNoticeVO" alias="reservationNotice" />
+
+		
+		<typeAlias type="com.joinwork.scheduler.dto.ScheduleVO" alias="schedule" />
+		<typeAlias type="com.joinwork.attend.dto.AttendenceVO" alias="attendence" />
+		<typeAlias type="com.joinwork.doc.dto.DocVO" alias="doc" />
+		<typeAlias type="com.joinwork.addbook.dto.AddBookVO" alias="addBook" />
+		<typeAlias type="com.joinwork.common.dto.DeptVO" alias="dept" />
+		
+
+		<typeAlias type="com.joinwork.common.dto.AlarmVO" alias="alarm"/>
+		<typeAlias type="com.joinwork.common.dto.AlarmManageVO" alias="alarmManage"/>
+		<typeAlias type="com.joinwork.common.dto.DashboardVO" alias="dashboard"/>
+
+
+<!-- command -->
+		<typeAlias type="com.joinwork.treeview.command.OrgChartParsingCommand" alias="orgChartParse" />
+		<typeAlias type="com.joinwork.treeview.command.DeptDetailCommand" alias="deptDetail" />
+		<typeAlias type="com.joinwork.treeview.command.OrganizationCommand" alias="org" />
+		<typeAlias type="com.joinwork.approval.command.ApprovalWaitDocsCommand" alias="appDoc" />
+		<typeAlias type="com.joinwork.attend.command.AttendenceListCommand" alias="attendenceCommand" />
+		<typeAlias type="com.joinwork.scheduler.command.ScheduleCommand" alias="scheduleCommand" />
+		
+
+
+	</typeAliases>
+
+	
+</configuration>
+
+
+
+
+
+
+
+
