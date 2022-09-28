@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.anony.dao.AnonyDAO">
+
+<insert id="insertAnony" parameterType="anony">
+		INSERT INTO tb_anony_board (
+		    anony_board_id,
+		    anony_board_title,
+		    anony_board_content,
+		    anony_board_readcnt,
+		    anony_board_create_dt,
+		    anony_board_update_dt,
+		    anony_board_updater_id,
+		    emp_writer_id
+		) VALUES (
+		    tb_anony_board_seq.nextval,
+		    #{anonyBoardTitle},
+		    #{anonyBoardContent},
+		    0,
+		    sysdate,
+		    sysdate,
+		    #{anonyBoardUpdaterId},
+		    #{empWriterId}
+		)
+</insert>
+
+<select id="selectAnonyList" parameterType="anony" resultType="anony">
+			
+	select A2.*
+	from(
+		select A1.*
+		from (
+			select
+				rownum as seq, A.*
+			from
+				(SELECT
+					anony_board_id,
+					anony_board_title,
+					anony_board_content,
+					anony_board_readcnt,
+					anony_board_create_dt,
+					anony_board_update_dt,
+					anony_board_updater_id,
+					emp_writer_id
+				FROM
+				    tb_anony_board
+				WHERE 1=1
+			    <include refid="search" />
+			    ORDER BY anony_board_create_dt DESC
+			   ) A
+			) A1
+		where seq <![CDATA[ >= ]]> #{firstIndex}
+		) A2
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectAnonyListTotalCount" parameterType="anony" resultType="int">	
+			SELECT
+			    COUNT(*)
+			FROM tb_anony_board A 
+			     JOIN tb_emp B
+		     	 ON A.emp_writer_id=B.emp_id
+			WHERE 1=1
+	<include refid="search" />
+</select>
+
+<select id="selectAnonyById" parameterType="int" resultType="anony">
+			SELECT
+				anony_board_id,
+				anony_board_title,
+				anony_board_content,
+				anony_board_readcnt,
+				anony_board_create_dt,
+				anony_board_update_dt,
+				anony_board_updater_id,
+				emp_writer_id
+			FROM
+			    tb_anony_board
+			WHERE anony_board_id = #{anonyBoardId}
+</select>
+
+<select id="selectAnonySeqNext" resultType="int">
+	select tb_anony_board_seq.nextval as anonyBoardId from dual
+</select>
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "tc"'>
+				AND	(anony_board_title LIKE '%' || #{searchKeyword} || '%'
+					OR anony_board_content LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	anony_board_title LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "c"'>
+				AND	anony_board_content LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<update id="updateAnony" parameterType="anony">
+		 UPDATE tb_anony_board
+	    	SET
+		    	anony_board_title = #{anonyBoardTitle},
+		    	anony_board_content = #{anonyBoardContent},
+		    	anony_board_update_dt = sysdate,
+		    	anony_board_updater_id = #{anonyBoardUpdaterId}
+	    	WHERE
+	    		anony_board_id = #{anonyBoardId}
+</update>
+
+<delete id="deleteAnony" parameterType="anony">
+	DELETE FROM tb_anony_board
+	WHERE
+	    anony_board_id = #{anonyBoardId}
+</delete>
+
+<update id="increaseAnonyReadcnt" parameterType="anony">
+	UPDATE tb_anony_board
+    SET
+         anony_board_readcnt =  anony_board_readcnt+1
+	WHERE
+	    anony_board_id = #{anonyBoardId}
+</update>
+
+<select id="selectReplyListTotalCount" parameterType="anony" resultType="int">
+	SELECT
+	    COUNT(*)
+	FROM tb_anony_reply
+	WHERE anony_board_id = #{anonyBoardId}
+</select>
+
+<insert id="insertAnonyReply" parameterType="anonyReply">
+		INSERT INTO tb_anony_reply (
+		    reply_content,
+		    reply_create_dt,
+		    reply_update_dt,
+		    reply_id,
+		    anony_board_id,
+		    emp_writer_id
+	) VALUES (
+		    #{replyContent},
+		    sysdate,
+		    sysdate,
+		    tb_anony_reply_seq.nextval,
+		    #{anonyBoardId},
+		    #{empWriterId}
+	)
+
+</insert>
+
+<update id="updateAnonyReply" parameterType="anonyReply">
+	UPDATE tb_anony_reply
+	    SET
+	       reply_content=#{replyContent}
+	      ,reply_update_dt=sysdate
+	WHERE
+	    reply_id =#{replyId}
+</update>
+
+<delete id="deleteAnonyReply" parameterType="anonyReply">
+	DELETE FROM tb_anony_reply
+	WHERE reply_id = #{replyId}
+</delete>
+
+<select id="selectAnonyReplyList" parameterType="anony" resultType="anonyReply">
+		SELECT
+			reply_content,
+		    reply_create_dt,
+		    reply_update_dt,
+		    reply_id,
+		    anony_board_id,
+		    emp_writer_id
+		FROM
+			tb_anony_reply
+		WHERE anony_board_id = #{anonyBoardId}
+		ORDER BY reply_create_dt
+</select>
+
+
+</mapper>

@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.doc.dao.DocDAO">
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "tcm"'>
+				AND	(a.doc_title LIKE '%' || #{searchKeyword} || '%'
+					OR a.doc_content LIKE '%' || #{searchKeyword} || '%'
+					OR b.emp_name LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	a.doc_title LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "c"'>
+				AND	a.doc_content LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "m"'>
+				AND	b.emp_name LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<select id="docMyList"	parameterType="doc" resultType="doc">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+						SELECT
+							    a.DOC_ID
+                               ,a.DOC_TITLE
+                               ,a.DOC_CONTENT
+                               ,a.DOC_READCNT
+                               ,a.DOC_CREATE_DT
+                               ,a.DOC_UPDATE_DT
+                               ,a.DOC_UPDATER_ID
+                               ,a.DOC_SECURITY
+                               ,a.EMP_WRITER_ID
+                               ,a.CODE_DOC_ID
+                               ,a.DOC_DEL
+                               ,a.DOC_IMPORTANCE
+                               ,a.EMP_DEPT
+                               ,a.DOC_INDIVIDUAL_CHECK
+							   ,B.emp_name
+							   ,B.code_name as officialName
+							   ,B.dept_name
+							   ,B.teamName
+                               ,B.dept_id
+							FROM
+                                TB_DOC a
+                                LEFT OUTER JOIN (
+                                                  SELECT  D1.emp_id
+                                                         ,D1.emp_name
+                                                         ,D1.emp_picture
+                                                         ,D1.code_official_id
+                                                         ,D2.code_name
+                                                         ,D3.dept_name
+                                                         ,D3.dept_id
+                                                         ,D4.dept_name teamName
+                                                    FROM tb_emp D1, tb_code D2, tb_dept D3, tb_dept D4
+                                                    WHERE D1.CODE_OFFICIAL_ID = D2.code_id
+                                                    AND D1.dept_id = D3.dept_id
+                                                    AND D1.team_id = D4.dept_id(+)
+                                                    ORDER BY D1.code_official_id DESC
+                                                   ) B
+                                                   on a.EMP_WRITER_ID = B.emp_id
+                            where emp_writer_id = #{empWriterId}
+                                AND doc_individual_check = 'P'
+                                AND DOC_DEL = 'N'
+                                AND 1=1 
+                                <include refid="search" />   
+                            order by A.DOC_CREATE_DT desc 	
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+    
+<select id="getAllList"	parameterType="emp" resultType="doc">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+						SELECT
+							    a.DOC_ID
+                               ,a.DOC_TITLE
+                               ,a.DOC_CONTENT
+                               ,a.DOC_READCNT
+                               ,a.DOC_CREATE_DT
+                               ,a.DOC_UPDATE_DT
+                               ,a.DOC_UPDATER_ID
+                               ,a.DOC_SECURITY
+                               ,a.EMP_WRITER_ID
+                               ,a.CODE_DOC_ID
+                               ,a.DOC_DEL
+                               ,a.DOC_IMPORTANCE
+                               ,a.EMP_DEPT
+                               ,a.DOC_INDIVIDUAL_CHECK
+							   ,B.emp_name
+							   ,B.code_name as officialName
+							   ,B.dept_name
+							   ,B.teamName
+                               ,B.dept_id
+							FROM
+                                TB_DOC a
+                                LEFT OUTER JOIN (
+                                                  SELECT  D1.emp_id
+                                                         ,D1.emp_name
+                                                         ,D1.emp_picture
+                                                         ,D1.code_official_id
+                                                         ,D2.code_name
+                                                         ,D3.dept_name
+                                                         ,D3.dept_id
+                                                         ,D4.dept_name teamName
+                                                    FROM tb_emp D1, tb_code D2, tb_dept D3, tb_dept D4
+                                                    WHERE D1.CODE_OFFICIAL_ID = D2.code_id
+                                                    AND D1.dept_id = D3.dept_id
+                                                    AND D1.team_id = D4.dept_id(+)
+                                                    ORDER BY D1.code_official_id DESC
+                                                   ) B
+                                                   on a.EMP_WRITER_ID = B.emp_id
+                            where a.DOC_DEL ='N' 
+                            and dept_id = #{deptId} or dept_id =  #{teamId} 
+                            order by A.DOC_CREATE_DT desc
+                              
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+    
+
+<select id="docApprovalList" resultType="doc">
+SELECT  B1.*
+        ,(SELECT EMP_NAME
+          FROM TB_EMP
+          WHERE EMP_ID = B1.emp_writer_id ) as empName
+        ,(SELECT DEPT_NAME
+          FROM  TB_DEPT
+          WHERE DEPT_ID = B1.emp_dept) AS deptName
+        ,(SELECT DEPT_NAME
+          FROM TB_DEPT
+          WHERE DEPT_ID = (SELECT TEAM_ID
+                             FROM   TB_EMP
+                             WHERE  EMP_ID = B1.emp_writer_id )) AS teamName
+FROM(
+        SELECT
+            doc_id
+           ,doc_title
+           ,doc_content
+           ,doc_readcnt
+           ,doc_create_dt
+           ,doc_update_dt
+           ,doc_updater_id
+           ,doc_security
+           ,emp_writer_id
+           ,code_doc_id
+           ,doc_del
+           ,doc_importance
+           ,emp_dept
+           ,doc_individual_check
+        FROM
+            tb_doc
+        WHERE 1=1
+            AND doc_individual_check = 'SYS'
+            AND DOC_DEL = 'N'
+     ) B1
+</select>
+    
+<select id="docDeptList" parameterType="doc" resultType="doc">
+ select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+						SELECT
+							    a.DOC_ID
+                               ,a.DOC_TITLE
+                               ,a.DOC_CONTENT
+                               ,a.DOC_READCNT
+                               ,a.DOC_CREATE_DT
+                               ,a.DOC_UPDATE_DT
+                               ,a.DOC_UPDATER_ID
+                               ,a.DOC_SECURITY
+                               ,a.EMP_WRITER_ID
+                               ,a.CODE_DOC_ID
+                               ,a.DOC_DEL
+                               ,a.DOC_IMPORTANCE
+                               ,a.EMP_DEPT
+                               ,a.DOC_INDIVIDUAL_CHECK
+							   ,B.emp_name
+							   ,B.code_name as officialName
+							   ,B.dept_name
+							   ,B.teamName
+                               ,B.dept_id
+							FROM
+                                TB_DOC a
+                                LEFT OUTER JOIN (
+                                                  SELECT  D1.emp_id
+                                                         ,D1.emp_name
+                                                         ,D1.emp_picture
+                                                         ,D1.code_official_id
+                                                         ,D2.code_name
+                                                         ,D3.dept_name
+                                                         ,D3.dept_id
+                                                         ,D4.dept_name teamName
+                                                    FROM tb_emp D1, tb_code D2, tb_dept D3, tb_dept D4
+                                                    WHERE D1.CODE_OFFICIAL_ID = D2.code_id
+                                                    AND D1.dept_id = D3.dept_id
+                                                    AND D1.team_id = D4.dept_id(+)
+                                                    ORDER BY D1.code_official_id DESC
+                                                   ) B
+                                                   on a.EMP_WRITER_ID = B.emp_id
+                            where 
+                                doc_individual_check = 'O'
+                                AND DOC_DEL = 'N'
+                                and a.emp_dept =#{empDept}
+                                AND 1=1
+                                <include refid="search" />      
+                                order by a.doc_id desc   	
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>    
+   
+    
+<update id="insertDoc" parameterType="doc" >
+<selectKey resultType="int" keyProperty="docId" order="BEFORE">
+    select tb_doc_seq.nextval as docId from dual
+</selectKey>   
+
+INSERT
+    INTO tb_doc (
+        doc_id
+       ,doc_title
+       ,doc_content
+       ,doc_readcnt
+       ,doc_create_dt
+       ,doc_security
+       ,emp_writer_id
+       ,doc_del
+       ,doc_importance
+       ,emp_dept
+       ,doc_individual_check
+    )
+VALUES (
+       #{docId}
+     , #{docTitle}
+     , #{docContent}
+     , 0
+     , sysdate
+     , #{docSecurity}
+     , #{empWriterId}
+     , #{docDel}
+     , #{docImportance}
+     , #{empDept}
+     , #{docIndividualCheck}
+     )
+</update>    
+    
+<insert id="insertDocFile" parameterType="docAttach">
+	INSERT INTO tb_doc_attach (
+	    attach_id
+	   ,attach_path
+	   ,attach_name
+	   ,attach_type
+	   ,attach_create_dt
+	   ,doc_id
+	   ,emp_attacher_id
+	   ,attach_size
+	) VALUES (
+	    DOC_ATTACH_SEQ.nextval          
+	    , #{attachPath}          
+	    , #{attachName}        
+	    , #{attachType}        
+	    , sysdate       
+	    , #{docId}       
+	    , #{empAttacherId}      
+	    , #{attachSize}       
+	)  
+</insert> 
+    
+    
+
+
+<select id="selectDocVO" parameterType="doc" resultType="doc">
+	SELECT
+	    a.doc_id
+	   ,a.doc_title
+	   ,a.doc_content
+	   ,a.doc_readcnt
+	   ,a.doc_create_dt
+	   ,a.doc_update_dt
+	   ,a.doc_updater_id
+	   ,a.doc_security
+	   ,a.emp_writer_id
+	   ,a.code_doc_id
+	   ,a.doc_del
+	   ,a.doc_importance
+	   ,a.emp_dept
+	   ,a.doc_individual_check
+	   ,b.emp_name
+	FROM
+	    tb_doc a
+	    JOIN tb_emp b ON a.emp_writer_id = b.emp_id
+	WHERE a.doc_id = #{docId}
+</select>
+
+<select id="selectDocAttachList" parameterType="doc" resultType="docAttach">
+	select
+	    attach_id
+	   ,attach_path
+	   ,attach_name
+	   ,attach_type
+	   ,attach_create_dt
+	   ,emp_attacher_id
+	   ,doc_id
+	   ,attach_size
+	from
+	    tb_doc_attach
+	where doc_id=#{docId}
+</select>
+       
+<update id="removeDoc" parameterType="int">
+    
+    UPDATE tb_doc
+   SET 
+       DOC_DEL='Y'
+       
+   WHERE
+       doc_id=#{docId}
+</update>    
+  
+
+
+
+<update id="increaseDocReadcnt"  parameterType="duty">
+	update
+		tb_doc
+	set
+		DOC_READCNT = DOC_READCNT+1
+	where DOC_ID = #{docId}
+</update>
+  
+  
+  
+  
+  
+  
+        
+<select id="selectDocMyListTotalCount" parameterType="doc" resultType="int">
+SELECT
+	    COUNT(*)
+FROM tb_doc    
+WHERE emp_writer_id = #{empWriterId}
+    AND doc_individual_check = 'P'
+    AND DOC_DEL = 'N' 
+    AND 1=1
+</select>
+
+<select id="selectDocDeptListTotalCount" parameterType="doc" resultType="int">
+SELECT
+    COUNT(*)
+FROM
+    tb_doc
+WHERE
+    emp_dept = #{empDept}
+    AND doc_individual_check = 'O'
+    AND   doc_del = 'N'
+    AND   1 = 1
+</select>
+
+<select id="selectDocApprovalListTotalCount" resultType="int">
+SELECT
+	    COUNT(*)
+FROM tb_doc
+WHERE 
+    doc_individual_check = 'SYS'
+    AND DOC_DEL = 'N' 
+    AND 1=1
+</select>
+
+
+
+
+
+
+
+
+<select id="getEmpDept" parameterType="doc" resultType="str">
+select
+	 dept_id 
+from
+	 tb_emp 
+where 
+	 emp_id = #{empWriterId}
+</select>
+
+<select id="getEmpTeamDept" parameterType="doc" resultType="str">
+select 
+	team_id 
+from 
+	tb_emp 
+where 
+	emp_id = #{empWriterId}
+</select>
+
+
+</mapper>

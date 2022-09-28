@@ -1,0 +1,83 @@
+
+<!DOCTYPE tiles-definitions PUBLIC
+  "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+  "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+  
+<tiles-definitions>
+
+	<definition name="base" template="/WEB-INF/views/decorators/main_decorator.jsp" ></definition>
+	
+	<definition name="*.page" extends="base" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}.jsp"/>
+	</definition>
+	<definition name="*/*.page" extends="base" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}.jsp"/>
+	</definition>
+	<definition name="*/*/*.page" extends="base" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}/{3}.jsp"/>
+	</definition>
+	
+	<!-- window open page / iframe page -->
+	<definition name="open" template="/WEB-INF/views/decorators/open_decorator.jsp" >	
+		<put-attribute name="header" value="/WEB-INF/views/include/header.jsp" />
+       	<put-attribute name="footer" value="/WEB-INF/views/include/footer.jsp" />		
+	</definition>
+	<definition name="*.open" extends="open" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}.jsp"/>
+	</definition>
+	<definition name="*/*.open" extends="open" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}.jsp"/>
+	</definition>
+	<definition name="*/*/*.open" extends="open" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}/{3}.jsp"/>
+	</definition>
+	
+	<!-- Admin base page -->
+	<definition name="adminBase" template="/WEB-INF/views/decorators/admin_main_decorator.jsp"></definition>
+	
+	<definition name="*.admin" extends="adminBase">
+		<put-attribute name="body" value="/WEB-INF/views/{1}.jsp"/>
+	</definition>
+	<definition name="*/*.admin" extends="adminBase" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}.jsp"/>
+	</definition>
+	<definition name="*/*/*.admin" extends="adminBase" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}/{3}.jsp"/>
+	</definition>
+	
+	<!-- Admin resource -->
+	<definition name="adminResourceBase" template="/WEB-INF/views/decorators/admin_resource_main_decorator.jsp"></definition>
+	
+	<definition name="*.resource" extends="adminResourceBase">
+		<put-attribute name="body" value="/WEB-INF/views/{1}.jsp"/>
+	</definition>
+	<definition name="*/*.resource" extends="adminResourceBase" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}.jsp"/>
+	</definition>
+	<definition name="*/*/*.resource" extends="adminResourceBase" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}/{3}.jsp"/>
+	</definition>
+	
+
+	<!-- Admin window open page / iframe page -->
+	<definition name="adminOpen" template="/WEB-INF/views/decorators/admin_open_decorator.jsp" >	
+		<put-attribute name="adminHeader" value="/WEB-INF/views/include/adminHeader.jsp" />
+       	<put-attribute name="footer" value="/WEB-INF/views/include/footer.jsp" />		
+	</definition>
+	<definition name="*.pop" extends="adminOpen" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}.jsp"/>
+	</definition>
+	<definition name="*/*.pop" extends="adminOpen" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}.jsp"/>
+	</definition>
+	<definition name="*/*/*.pop" extends="adminOpen" >
+		<put-attribute name="body"  value="/WEB-INF/views/{1}/{2}/{3}.jsp"/>
+	</definition>
+
+</tiles-definitions>
+
+
+
+
+
+

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.cac.dao.CacDAO">
+
+<insert id="insertCac" parameterType="cac">
+		INSERT INTO tb_cac_board (
+		    cac_board_id,
+		    cac_board_title,
+		    cac_board_content,
+		    cac_board_readcnt,
+		    cac_board_create_dt,
+		    cac_board_update_dt,
+		    cac_board_updater_id,
+		    emp_writer_id,
+		    cac_board_end_dt,
+		    cac_start_dt,
+		    cac_end_dt,
+		    cac_category
+		) VALUES (
+		    tb_cac_board_seq.nextval,
+		    #{cacBoardTitle},
+		    #{cacBoardContent},
+		    0,
+		    sysdate,
+		    sysdate,
+		    #{cacBoardUpdaterId},
+		    #{empWriterId},
+		    sysdate,
+		    to_date(#{cacStartDt},'MM/DD/YYYY'),
+		    to_date(#{cacEndDt},'MM/DD/YYYY'),
+		    #{cacCategory}
+		)
+</insert>
+
+
+<select id="selectCacById" parameterType="int" resultType="cac">
+		select
+			 cac_board_id,
+		     cac_board_title,
+		     cac_board_content,
+		     cac_board_readcnt,
+		     cac_board_create_dt,
+		     cac_board_update_dt,
+		     cac_board_updater_id,
+		     emp_writer_id,
+		     cac_board_end_dt,
+		     cac_start_dt,
+		     cac_end_dt,
+		     cac_category           
+			 ,B.emp_name      
+		from tb_cac_board A, tb_emp B
+		where A.emp_writer_id=B.emp_id
+		and cac_board_id = #{cacBoardId}
+</select>
+	
+<select id="selectCacSeqNext" resultType="int">
+	select tb_cac_seq.nextval as cacBoardId from dual
+</select>
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "tcm"'>
+				AND	(A.cac_board_title LIKE '%' || #{searchKeyword} || '%'
+					OR A.cac_board_content LIKE '%' || #{searchKeyword} || '%'
+					OR B.emp_name LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	A.cac_board_title LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "c"'>
+				AND	A.cac_board_content LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "m"'>
+				AND	B.emp_name LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+	<if test="searchDt != null and searchDt != ''">
+		AND TO_CHAR(A.CAC_END_DT,'yyyyMMdd') = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'),'yyyyMMdd')
+	</if>
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "결혼"'>
+				AND A.CAC_CATEGORY = '결혼'
+			</when>
+			<when test='searchState == "부고"'>
+				AND A.CAC_CATEGORY = '부고'
+			</when>
+			<when test='searchState == "기타"'>
+				AND A.CAC_CATEGORY = '기타'
+			</when>
+		</choose>
+	</if>
+	
+	
+	
+</sql>
+
+<select id="selectCacList" parameterType="cac" resultType="cac">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+						SELECT
+						    A.cac_board_id
+						   ,A.cac_board_title
+						   ,A.cac_board_content
+						   ,A.cac_board_readcnt
+						   ,A.cac_board_create_dt
+						   ,A.cac_board_update_dt
+						   ,A.cac_board_updater_id
+						   ,A.cac_start_dt
+						   ,A.cac_end_dt
+						   ,A.cac_category
+						   ,A.emp_writer_id
+						   ,B.emp_name 
+						FROM tb_cac_board A 
+						     JOIN tb_emp B
+					     	 ON A.emp_writer_id=B.emp_id
+						WHERE 1=1
+						<include refid="search" />
+						ORDER BY A.cac_board_create_dt DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<update id="increaseCacReadcnt" parameterType="cac">
+	UPDATE tb_cac_board
+    SET
+         cac_board_readcnt =  cac_board_readcnt+1
+	WHERE
+	    cac_board_id = #{cacBoardId}
+</update>
+
+
+<select id="selectCacListTotalCount" parameterType="cac" resultType="int">	
+	SELECT
+	    COUNT(*)
+	FROM tb_cac_board A 
+	     JOIN tb_emp B
+     	 ON A.emp_writer_id=B.emp_id
+	WHERE 1=1
+	<include refid="search" />
+</select>
+
+<update id="updateCac" parameterType="cac">
+		UPDATE tb_cac_board
+		    SET
+	        cac_board_title = #{cacBoardTitle}
+		    ,cac_board_content = #{cacBoardContent}
+		    ,cac_start_dt = to_date(#{cacStartDt},'MM/DD/YYYY')
+		    ,cac_end_dt = to_date(#{cacEndDt},'MM/DD/YYYY')
+		    ,cac_board_update_dt = sysdate
+		    ,cac_board_updater_id = #{cacBoardUpdaterId}
+		WHERE
+		    cac_board_id = #{cacBoardId}
+	</update>
+	
+<delete id="deleteCac" parameterType="cac">
+	DELETE FROM tb_cac_board
+	WHERE
+	    cac_board_id = #{cacBoardId}
+</delete>
+			
+</mapper>

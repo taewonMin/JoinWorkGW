@@ -1,0 +1,694 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.duty.dao.DutyDAO">
+
+<insert id="insertDuty" parameterType="duty">
+<selectKey resultType="int" keyProperty="dutyBoardId" order="BEFORE">
+    SELECT duty_board_id_seq.nextval FROM dual
+</selectKey>
+INSERT INTO tb_duty (
+    duty_board_id
+   ,duty_board_title
+   ,duty_board_content
+   ,duty_board_readcnt
+   ,duty_board_create_dt
+   ,duty_board_update_dt
+   ,duty_board_updater_id
+   <if test='dutyBoardEndDt != null'>
+   ,duty_board_end_dt
+   </if>
+   ,emp_writer_id
+   ,duty_board_security
+) VALUES (
+    #{dutyBoardId}
+   ,#{dutyBoardTitle}
+   ,#{dutyBoardContent}
+   ,0
+   ,sysdate
+   ,sysdate
+   ,#{dutyBoardUpdaterId}
+   <if test='dutyBoardEndDt != null'>
+   ,#{dutyBoardEndDt}
+   </if>
+   ,#{empWriterId}
+   ,0
+)
+</insert>
+
+<insert id="insertDutyManager" parameterType="dutyManager">
+INSERT INTO tb_duty_manager (
+    duty_board_id
+   ,emp_id
+) VALUES (
+    #{dutyBoardId}
+   ,#{empId}
+)
+</insert>
+
+<insert id="insertDutyReceptioner" parameterType="dutyManager">
+INSERT INTO TB_DUTY_RECEPTION (
+    DUTY_BOARD_ID
+   ,EMP_ID
+) VALUES (
+    #{dutyBoardId}
+   ,#{empId}
+)
+</insert>
+
+<insert id="insertDutyReceptionDept" parameterType="dutyManager">
+INSERT INTO TB_DUTY_RECEPTION (
+    DUTY_BOARD_ID
+    ,DEPT_ID
+) VALUES (
+    #{dutyBoardId}
+   ,#{deptId}
+)
+</insert>
+
+
+<insert id="insertDutyFile" parameterType="dutyAttach">
+INSERT INTO tb_duty_attach (
+    attach_id
+   ,attach_path
+   ,attach_name
+   ,attach_type
+   ,attach_create_dt
+   ,emp_attacher_id
+   ,duty_board_id
+   ,attach_size
+) VALUES (
+    duty_attach_id_seq.nextval
+   ,#{attachPath}
+   ,#{attachName}
+   ,#{attachType}
+   ,sysdate
+   ,#{empAttacherId}
+   ,#{dutyBoardId}
+   ,#{attachSize}
+)
+</insert>
+	
+<update id="updateDuty" parameterType="duty">
+	UPDATE tb_duty
+	    SET
+	        duty_board_title = #{dutyBoardTitle}
+		    ,duty_board_content = #{dutyBoardContent}
+		    ,duty_board_update_dt = sysdate
+		    ,duty_board_updater_id = #{dutyBoardUpdaterId}
+		    ,duty_board_end_dt = #{dutyBoardEndDt}
+	WHERE
+	    duty_board_id = #{dutyBoardId}
+</update>
+
+<update id="updateDutyManager" parameterType="dutyManager">
+	UPDATE tb_duty_manager
+	    SET
+	        read_st = 'Y'
+	WHERE
+	    duty_board_id = #{dutyBoardId}
+	    AND   emp_id = #{empId}
+</update>
+
+<delete id="deleteDutyManager" parameterType="duty">
+	DELETE FROM tb_duty_manager
+	WHERE
+	    duty_board_id =#{dutyBoardId}
+</delete>
+<delete id="deleteDutyReceiver" parameterType="duty">
+	DELETE FROM tb_duty_reception
+	WHERE
+	    duty_board_id =#{dutyBoardId}
+</delete>
+
+<delete id="deleteDutyFile" parameterType="duty">
+	DELETE FROM tb_duty_attach
+	WHERE
+	    duty_board_id = #{dutyBoardId}
+</delete>
+<delete id="deleteDutyFileById" parameterType="dutyAttach">
+	DELETE FROM tb_duty_attach
+	WHERE
+	    duty_board_id = #{dutyBoardId}
+	AND attach_id = #{attachId}
+</delete>
+
+<delete id="deleteDuty" parameterType="duty">
+	DELETE FROM tb_duty
+	WHERE
+	    duty_board_id = #{dutyBoardId}
+</delete>
+
+
+
+<update id="increaseDutyReadcnt" parameterType="duty">
+	UPDATE tb_duty
+    SET
+        duty_board_readcnt = duty_board_readcnt+1
+	WHERE
+	    duty_board_id = #{dutyBoardId}
+</update>
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "tcmn"'>
+				AND	(A.duty_board_title LIKE '%' || #{searchKeyword} || '%'
+					OR A.duty_board_content LIKE '%' || #{searchKeyword} || '%'
+					OR C.emp_name LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	A.duty_board_title LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "c"'>
+				AND	A.duty_board_content LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "m"'>
+				AND	C.emp_name LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "n"'>
+				AND	A.duty_board_id = #{searchKeyword}
+			</when>
+		</choose>
+	</if>
+	<if test="searchDeadline != null and searchDeadline != ''">
+		AND TO_CHAR(A.duty_board_end_dt,'yyyyMMdd') <![CDATA[ = ]]> TO_CHAR(to_date(#{searchDeadline},'MM/DD/YYYY'),'yyyyMMdd')
+	</if>
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "Y"'>
+				AND sysdate <![CDATA[ < ]]> A.duty_board_end_dt
+			</when>
+			<when test='searchState == "N"'>
+				AND sysdate <![CDATA[ >= ]]> A.duty_board_end_dt
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<select id="selectDutyList" parameterType="duty" resultType="duty">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+				  SELECT
+						    A.duty_board_id
+						   ,A.duty_board_title
+						   ,A.duty_board_content
+						   ,A.duty_board_readcnt
+						   ,A.duty_board_create_dt
+						   ,A.duty_board_update_dt
+						   ,A.duty_board_updater_id
+						   ,A.duty_board_end_dt
+						   ,A.emp_writer_id
+						   ,C.emp_name
+						   ,C.emp_id
+						   ,C.emp_picture
+						   ,A.duty_board_security
+						   ,B.attachCount
+						   ,NVL(D.reply_count,0) as replyCount
+                           ,(SELECT COUNT(EMP_ID) 
+                                FROM TB_EMP
+                               WHERE DEPT_ID IN (
+                                                    SELECT DEPT_ID
+                                                      FROM TB_DUTY_RECEPTION
+                                                     WHERE DUTY_BOARD_ID = A.duty_board_id   
+                                                       AND DEPT_ID IS NOT NULL
+                                                    )) deptCnt
+                           ,(SELECT COUNT(DUTY_BOARD_ID) 
+                                   FROM TB_DUTY_RECEPTION
+                                  WHERE DUTY_BOARD_ID = A.duty_board_id
+                                    AND EMP_ID IS NOT NULL
+                                                    ) empCnt   
+						FROM tb_duty A 
+							 LEFT OUTER JOIN (
+                                               SELECT duty_board_id,
+                                                      COUNT(*) as attachCount
+                                               FROM tb_duty_attach 
+                                               GROUP BY duty_board_id
+                                              ) B 
+						     ON A.duty_board_id=B.duty_board_id
+						     JOIN tb_emp C
+					     	 ON A.emp_writer_id=C.emp_id
+					     	 LEFT OUTER JOIN (
+					     	 				  SELECT duty_board_id,
+					     	 				  		 COUNT(*) AS reply_count
+			     	 				  		  FROM tb_duty_reply
+			     	 				  		  GROUP BY duty_board_id
+			     	 				  		  ) D 
+                             ON A.duty_board_id=D.duty_board_id
+                                                                          
+						WHERE 1=1
+                          AND (#{empWriterId} = EMP_WRITER_ID   
+                           OR  #{empWriterId} IN (SELECT T1.EMP_ID
+                                                    FROM TB_DUTY_MANAGER T1
+                                                   WHERE T1.DUTY_BOARD_ID = A.duty_board_id)
+                           OR  #{empWriterId} IN (SELECT T2.EMP_ID
+                                                    FROM TB_DUTY_RECEPTION T2
+                                                   WHERE T2.DUTY_BOARD_ID = A.duty_board_id
+                                                     AND T2.EMP_ID IS NOT NULL
+                                                    )
+                           OR   (SELECT DEPT_ID 
+                                   FROM TB_EMP 
+                                  WHERE EMP_ID = #{empWriterId}) IN                
+                                (SELECT T3.DEPT_ID 
+                                   FROM TB_DUTY_RECEPTION T3 
+                                  WHERE T3.DUTY_BOARD_ID = A.duty_board_id
+                                    AND T3.DEPT_ID IS NOT NULL)
+
+                                                  )
+                        <include refid="search" />
+						ORDER BY A.duty_board_create_dt DESC
+						
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectDutyListTotalCount" parameterType="duty" resultType="int">
+	SELECT
+	    COUNT(*)
+	FROM tb_duty A 
+	 LEFT OUTER JOIN (
+	                SELECT duty_board_id,
+	                       COUNT(*) as attachCount
+	                FROM tb_duty_attach 
+	                GROUP BY duty_board_id
+	               ) B 
+				     ON A.duty_board_id=B.duty_board_id
+				     JOIN tb_emp C
+				    	 ON A.emp_writer_id=C.emp_id
+				    	 LEFT OUTER JOIN (
+    	 				  SELECT duty_board_id,
+    	 				  		 COUNT(*) AS reply_count
+  	 				  		  FROM tb_duty_reply
+  	 				  		  GROUP BY duty_board_id
+  	 				  		  ) D 
+                       ON A.duty_board_id=D.duty_board_id
+                                                                    
+	WHERE 1=1
+      AND (#{empWriterId} = EMP_WRITER_ID   
+       OR  #{empWriterId} IN (SELECT T1.EMP_ID
+                                FROM TB_DUTY_MANAGER T1
+                               WHERE T1.DUTY_BOARD_ID = A.duty_board_id)
+       OR  #{empWriterId} IN (SELECT T2.EMP_ID
+                                FROM TB_DUTY_RECEPTION T2
+                               WHERE T2.DUTY_BOARD_ID = A.duty_board_id
+                                 AND T2.EMP_ID IS NOT NULL
+                                )
+       OR   (SELECT DEPT_ID 
+               FROM TB_EMP 
+              WHERE EMP_ID = #{empWriterId}) IN                
+            (SELECT T3.DEPT_ID 
+               FROM TB_DUTY_RECEPTION T3 
+              WHERE T3.DUTY_BOARD_ID = A.duty_board_id
+                AND T3.DEPT_ID IS NOT NULL)
+
+                              )
+	<include refid="search" />
+</select>
+
+<select id="selectMyDutyList" parameterType="duty" resultType="duty">
+select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+				  SELECT
+						    A.duty_board_id
+						   ,A.duty_board_title
+						   ,A.duty_board_content
+						   ,A.duty_board_readcnt
+						   ,A.duty_board_create_dt
+						   ,A.duty_board_update_dt
+						   ,A.duty_board_updater_id
+						   ,A.duty_board_end_dt
+						   ,A.emp_writer_id
+						   ,C.emp_name
+						   ,C.emp_id
+						   ,C.emp_picture
+						   ,A.duty_board_security
+						   ,B.attachCount
+						   ,NVL(D.reply_count,0) as replyCount
+                           ,(SELECT COUNT(EMP_ID) 
+                                FROM TB_EMP
+                               WHERE DEPT_ID IN (
+                                                    SELECT DEPT_ID
+                                                      FROM TB_DUTY_RECEPTION
+                                                     WHERE DUTY_BOARD_ID = A.duty_board_id   
+                                                       AND DEPT_ID IS NOT NULL
+                                                    )) deptCnt
+                           ,(SELECT COUNT(DUTY_BOARD_ID) 
+                                   FROM TB_DUTY_RECEPTION
+                                  WHERE DUTY_BOARD_ID = A.duty_board_id
+                                    AND EMP_ID IS NOT NULL
+                                                    ) empCnt   
+						FROM tb_duty A 
+							 LEFT OUTER JOIN (
+                                               SELECT duty_board_id,
+                                                      COUNT(*) as attachCount
+                                               FROM tb_duty_attach 
+                                               GROUP BY duty_board_id
+                                              ) B 
+						     ON A.duty_board_id=B.duty_board_id
+						     JOIN tb_emp C
+					     	 ON A.emp_writer_id=C.emp_id
+					     	 LEFT OUTER JOIN (
+					     	 				  SELECT duty_board_id,
+					     	 				  		 COUNT(*) AS reply_count
+			     	 				  		  FROM tb_duty_reply
+			     	 				  		  GROUP BY duty_board_id
+			     	 				  		  ) D 
+                             ON A.duty_board_id=D.duty_board_id
+                                                                          
+						WHERE 1=1
+						<if test='dutyType == "send"'>
+						AND emp_writer_id = #{empWriterId}
+						</if>
+						<if test='dutyType == "receive"'>
+						AND #{empWriterId} IN (SELECT T1.EMP_ID
+                                                 FROM TB_DUTY_MANAGER T1
+                                                WHERE T1.DUTY_BOARD_ID = A.duty_board_id)
+						</if>
+                        <include refid="search" />
+						ORDER BY A.duty_board_create_dt DESC
+						
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectMyDutyListTotalCount" parameterType="duty" resultType="int">
+	SELECT COUNT(*)
+	 FROM tb_duty A 
+	 LEFT OUTER JOIN (
+	                SELECT duty_board_id,
+	                       COUNT(*) as attachCount
+	                FROM tb_duty_attach 
+	                GROUP BY duty_board_id
+	               ) B 
+				     ON A.duty_board_id=B.duty_board_id
+				     JOIN tb_emp C
+				    	 ON A.emp_writer_id=C.emp_id
+				    	 LEFT OUTER JOIN (
+    	 				  SELECT duty_board_id,
+    	 				  		 COUNT(*) AS reply_count
+  	 				  		  FROM tb_duty_reply
+  	 				  		  GROUP BY duty_board_id
+  	 				  		  ) D 
+                       ON A.duty_board_id=D.duty_board_id
+                                                                    
+	WHERE 1=1
+    <if test='dutyType == "send"'>
+	AND emp_writer_id = #{empWriterId}
+	</if>
+	<if test='dutyType == "receive"'>
+	AND #{empWriterId} IN (SELECT T1.EMP_ID
+                             FROM TB_DUTY_MANAGER T1
+                            WHERE T1.DUTY_BOARD_ID = A.duty_board_id)
+	</if>
+	<include refid="search" />
+</select>
+<select id="selectDutyReceptionList" parameterType="duty" resultType="duty">
+select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+				  SELECT
+						    A.duty_board_id
+						   ,A.duty_board_title
+						   ,A.duty_board_content
+						   ,A.duty_board_readcnt
+						   ,A.duty_board_create_dt
+						   ,A.duty_board_update_dt
+						   ,A.duty_board_updater_id
+						   ,A.duty_board_end_dt
+						   ,A.emp_writer_id
+						   ,C.emp_name
+						   ,C.emp_id
+						   ,C.emp_picture
+						   ,A.duty_board_security
+						   ,B.attachCount
+						   ,NVL(D.reply_count,0) as replyCount
+                           ,(SELECT COUNT(EMP_ID) 
+                                FROM TB_EMP
+                               WHERE DEPT_ID IN (
+                                                    SELECT DEPT_ID
+                                                      FROM TB_DUTY_RECEPTION
+                                                     WHERE DUTY_BOARD_ID = A.duty_board_id   
+                                                       AND DEPT_ID IS NOT NULL
+                                                    )) deptCnt
+                           ,(SELECT COUNT(DUTY_BOARD_ID) 
+                                   FROM TB_DUTY_RECEPTION
+                                  WHERE DUTY_BOARD_ID = A.duty_board_id
+                                    AND EMP_ID IS NOT NULL
+                                                    ) empCnt   
+						FROM tb_duty A 
+							 LEFT OUTER JOIN (
+                                               SELECT duty_board_id,
+                                                      COUNT(*) as attachCount
+                                               FROM tb_duty_attach 
+                                               GROUP BY duty_board_id
+                                              ) B 
+						     ON A.duty_board_id=B.duty_board_id
+						     JOIN tb_emp C
+					     	 ON A.emp_writer_id=C.emp_id
+					     	 LEFT OUTER JOIN (
+					     	 				  SELECT duty_board_id,
+					     	 				  		 COUNT(*) AS reply_count
+			     	 				  		  FROM tb_duty_reply
+			     	 				  		  GROUP BY duty_board_id
+			     	 				  		  ) D 
+                             ON A.duty_board_id=D.duty_board_id
+                                                                          
+						WHERE 1=1
+                          AND (
+                             #{empWriterId} IN (SELECT T2.EMP_ID
+                                                    FROM TB_DUTY_RECEPTION T2
+                                                   WHERE T2.DUTY_BOARD_ID = A.duty_board_id
+                                                     AND T2.EMP_ID IS NOT NULL
+                                                    )
+                           OR   (SELECT DEPT_ID 
+                                   FROM TB_EMP 
+                                  WHERE EMP_ID = #{empWriterId}) IN                
+                                (SELECT T3.DEPT_ID 
+                                   FROM TB_DUTY_RECEPTION T3 
+                                  WHERE T3.DUTY_BOARD_ID = A.duty_board_id
+                                    AND T3.DEPT_ID IS NOT NULL)
+                                                  )
+                        <include refid="search" />
+						ORDER BY A.duty_board_create_dt DESC
+						
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+<select id="selectDutyReceptionListTotalCount" parameterType="duty" resultType="int">
+SELECT COUNT(*)
+	 FROM tb_duty A 
+	 LEFT OUTER JOIN (
+                       SELECT duty_board_id,
+                              COUNT(*) as attachCount
+                       FROM tb_duty_attach 
+                       GROUP BY duty_board_id
+                      ) B 
+					   ON A.duty_board_id=B.duty_board_id
+					   JOIN tb_emp C
+					  	 ON A.emp_writer_id=C.emp_id
+					  	 LEFT OUTER JOIN (
+					  	 				  SELECT duty_board_id,
+					  	 				  		 COUNT(*) AS reply_count
+						 				  		  FROM tb_duty_reply
+						 				  		  GROUP BY duty_board_id
+						 				  		  ) D 
+					                     ON A.duty_board_id=D.duty_board_id
+WHERE 1=1
+ AND (  
+    #{empWriterId} IN (SELECT T2.EMP_ID
+                           FROM TB_DUTY_RECEPTION T2
+                          WHERE T2.DUTY_BOARD_ID = A.duty_board_id
+                            AND T2.EMP_ID IS NOT NULL
+                           )
+  OR   (SELECT DEPT_ID 
+          FROM TB_EMP 
+         WHERE EMP_ID = #{empWriterId}) IN                
+       (SELECT T3.DEPT_ID 
+          FROM TB_DUTY_RECEPTION T3 
+         WHERE T3.DUTY_BOARD_ID = A.duty_board_id
+           AND T3.DEPT_ID IS NOT NULL)
+                         )
+	<include refid="search" />
+</select>
+
+
+<select id="selectDutyManagerList" parameterType="duty" resultType="dutyManager">
+	SELECT  A.emp_id
+           ,A.emp_name
+           ,A.emp_picture
+           ,B.attend_st_name
+           ,C.dept_name
+           ,D.code_name as officialName
+           ,E.duty_board_id
+           ,E.read_st
+      FROM tb_emp A, tb_attend_st B, tb_dept C, tb_code D, tb_duty_manager E
+     WHERE A.attend_st_id = B.attend_st_id(+)
+     AND A.dept_id = C.dept_id(+)
+     AND A.code_official_id = D.code_id
+     AND A.emp_id = E.emp_id
+     AND duty_board_id = #{dutyBoardId}
+</select>
+
+<select id="selectReceptionList" parameterType="duty" resultType="dutyReceptioner">
+SELECT
+        A.DUTY_BOARD_ID
+       ,A.EMP_ID
+       ,B.EMP_NAME
+  FROM TB_DUTY_RECEPTION A, TB_EMP B
+ WHERE A.EMP_ID = B.EMP_ID
+   AND DUTY_BOARD_ID=#{dutyBoardId}
+   AND A.EMP_ID IS NOT NULL
+</select>
+
+<select id="selectReceptionDeptList" parameterType="duty" resultType="dutyReceptionDept">
+SELECT
+        A.DUTY_BOARD_ID
+       ,A.DEPT_ID
+       ,B.DEPT_NAME
+  FROM
+        TB_DUTY_RECEPTION A, TB_DEPT B
+ WHERE A.DEPT_ID = B.DEPT_ID
+   AND DUTY_BOARD_ID=#{dutyBoardId}
+   AND A.DEPT_ID IS NOT NULL
+</select>
+
+<select id="selectDutyVO" parameterType="duty" resultType="duty">
+	SELECT
+	    A.duty_board_id
+	   ,A.duty_board_title
+	   ,A.duty_board_content
+	   ,A.duty_board_readcnt
+	   ,A.duty_board_create_dt
+	   ,A.duty_board_update_dt
+	   ,A.duty_board_updater_id
+	   ,A.duty_board_end_dt
+	   ,A.emp_writer_id
+	   ,B.emp_name
+	   ,A.duty_board_security
+	FROM tb_duty A 
+	     JOIN tb_emp B
+	    	 ON A.emp_writer_id=B.emp_id
+	   WHERE A.duty_board_id = #{dutyBoardId}
+</select>
+
+<select id="selectDutyAttachList" parameterType="duty" resultType="dutyAttach">
+	SELECT
+	    attach_id
+	   ,attach_path
+	   ,attach_name
+	   ,attach_type
+	   ,attach_create_dt
+	   ,emp_attacher_id
+	   ,duty_board_id
+	   ,attach_size
+	FROM
+	    tb_duty_attach
+	WHERE duty_board_id=#{dutyBoardId}
+</select>
+<select id="selectDutyAttachById" parameterType="dutyAttach" resultType="dutyAttach">
+	SELECT
+	    attach_id
+	   ,attach_path
+	   ,attach_name
+	   ,attach_type
+	   ,attach_create_dt
+	   ,emp_attacher_id
+	   ,duty_board_id
+	   ,attach_size
+	FROM
+	    tb_duty_attach
+	WHERE duty_board_id=#{dutyBoardId}
+	AND attach_id=#{attachId}
+</select>
+
+<insert id="insertDutyReply" parameterType="dutyReply">
+	INSERT INTO tb_duty_reply (
+	    reply_id
+	   ,reply_content
+	   ,reply_create_dt
+	   ,reply_update_dt
+	   ,duty_board_id
+	   ,emp_writer_id
+	) VALUES (
+		duty_reply_id_seq.nextval
+	   ,#{replyContent}
+	   ,sysdate
+	   ,sysdate
+	   ,#{dutyBoardId}
+	   ,#{empWriterId}
+	)
+</insert>
+
+<update id="updateDutyReply" parameterType="dutyReply">
+	UPDATE tb_duty_reply
+	    SET
+	       reply_content=#{replyContent}
+	      ,reply_update_dt=sysdate
+	WHERE
+	    reply_id =#{replyId}
+</update>
+
+<delete id="deleteDutyReplyAll" parameterType="duty">
+	DELETE FROM tb_duty_reply
+	WHERE duty_board_id=#{dutyBoardId}
+</delete>
+<delete id="deleteDutyReply" parameterType="dutyReply">
+	DELETE FROM tb_duty_reply
+	WHERE reply_id = #{replyId}
+</delete>
+
+<select id="selectReplyListTotalCount" parameterType="duty" resultType="int">
+	SELECT
+	    COUNT(*)
+	FROM tb_duty_reply
+	WHERE duty_board_id=#{dutyBoardId}
+</select>
+
+<select id="selectDutyReplyList" parameterType="duty" resultType="dutyReply">
+select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+						SELECT
+						    reply_id
+						   ,reply_content
+						   ,reply_create_dt
+						   ,reply_update_dt
+						   ,duty_board_id
+						   ,emp_writer_id
+						   ,B.emp_name
+						FROM
+						    tb_duty_reply A, tb_emp B
+						WHERE A.emp_writer_id=B.emp_id
+						AND duty_board_id=#{dutyBoardId}
+						ORDER BY reply_create_dt
+				  ) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+</mapper>

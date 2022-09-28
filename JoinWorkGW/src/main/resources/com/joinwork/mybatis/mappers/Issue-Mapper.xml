@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.issue.dao.IssueDAO">
+	
+	<insert id="insertIssue" parameterType="issue">
+		<selectKey resultType="int" keyProperty="issueBoardId" order="BEFORE">
+			SELECT issue_board_id_seq.nextval FROM dual
+		</selectKey>
+		INSERT INTO tb_issue_board (
+		    issue_board_id
+		   ,issue_board_title
+		   ,issue_board_content
+		   ,issue_board_readcnt
+		   ,issue_board_create_dt
+		   ,issue_board_update_dt
+		   ,issue_board_updater_id
+		   ,emp_id
+		   <if test="dutyBoardId != null and dutyBoardId != ''">
+		   ,duty_board_id
+			</if>
+		   ,issue_open_st
+		   <if test="issueProjectSt != null and issueProjectSt != ''">
+		   ,issue_project_st
+			</if>
+		) VALUES (
+			#{issueBoardId}
+		   ,#{issueBoardTitle}
+		   ,#{issueBoardContent}
+		   ,0
+		   ,sysdate
+		   ,sysdate
+		   ,#{issueBoardUpdaterId}
+		   ,#{empId}
+		   <if test="dutyBoardId != null and dutyBoardId != ''">
+		   ,#{dutyBoardId}
+		   </if>
+		   ,#{issueOpenSt}
+		   <if test="issueProjectSt != null and issueProjectSt != ''">
+		   ,#{issueProjectSt}
+			</if>
+		)
+	</insert>
+	
+	<update id="updateIssueVO" parameterType="issue">
+		UPDATE tb_issue_board
+		   SET
+		         issue_board_title = #{issueBoardTitle}
+		        <if test="issueBoardContent != null and issueBoardContent != ''">
+		        ,issue_board_content = #{issueBoardContent}
+		        </if>
+		        <if test="dutyBoardId != null and dutyBoardId != ''">
+		        ,duty_board_id = #{dutyBoardId}
+		        </if>
+		        ,issue_board_update_dt = sysdate
+		        <if test="issueBoardSt != null and issueBoardSt != ''">
+		        ,issue_board_st = #{issueBoardSt}
+		        </if>
+	        	<choose>
+			        <when test="milestoneId != null and milestoneId != ''">
+				        ,milestone_id = #{milestoneId}
+			        </when>
+	        		<otherwise>
+				        ,milestone_id = null
+	        		</otherwise>
+	        	</choose>
+		        <if test="issueOpenSt != null and issueOpenSt != ''">
+	        	,issue_open_st = #{issueOpenSt}
+	        	</if>
+		WHERE
+		    issue_board_id = #{issueBoardId}
+	</update>
+	
+	<update id="updateIssueByDeleteMilestone" parameterType="milestone">
+		UPDATE tb_issue_board
+		    SET
+		        milestone_id = null
+		        ,issue_board_update_dt = sysdate
+		WHERE
+		    milestone_id = #{milestoneId}
+	</update>
+	
+	<update id="updateIssueByProject" parameterType="issue">
+		UPDATE tb_issue_board
+	    SET issue_project_st = #{issueProjectSt}
+		WHERE issue_board_id = #{issueBoardId}
+	</update>
+	
+	<delete id="deleteIssueVO" parameterType="issue">
+		DELETE FROM tb_issue_board
+		WHERE
+		    issue_board_id = #{issueBoardId}
+	</delete>
+	
+	<update id="increaseIssueReadcnt" parameterType="issue">
+		UPDATE tb_issue_board
+	    SET
+	        issue_board_readcnt = issue_board_readcnt+1
+		WHERE
+		    issue_board_id = #{issueBoardId}
+	</update>
+	
+	<sql id="search">
+		<if test="searchKeyword != null and searchKeyword != ''">
+	       <choose>
+	           <when test='searchCondition == "tcw"'>
+				AND	(A.issue_board_title LIKE '%' || #{searchKeyword} || '%'
+					OR A.issue_board_title LIKE '%' || #{searchKeyword} || '%'
+					OR B.emp_name LIKE '%' || #{searchKeyword} || '%'
+				)
+				</when>
+	            <when test='searchCondition == "t"'>
+					AND	A.issue_board_title LIKE '%' || #{searchKeyword} || '%'
+				</when>
+	            <when test='searchCondition == "c"'>
+					AND	A.issue_board_content LIKE '%' || #{searchKeyword} || '%'
+				</when>
+	            <when test='searchCondition == "w"'>
+					AND	B.emp_name LIKE '%' || #{searchKeyword} || '%'
+				</when>
+			</choose>
+		</if>
+	</sql>
+	
+	<select id="selectIssueList" parameterType="issue" resultType="issue">
+		select D3.*
+		  from(
+				select D2.*
+				from(
+					  select rownum as seq, D1.*
+					  from(
+							SELECT
+							    A.issue_board_id
+							   ,A.issue_board_title
+							   ,A.issue_board_content
+							   ,A.issue_board_readcnt
+							   ,to_char(A.issue_board_create_dt,'YYYY.MM.DD HH24:MI:SS') issue_board_create_dt
+							   ,to_char(A.issue_board_update_dt,'YYYY.MM.DD') issue_board_update_dt
+							   ,A.issue_board_updater_id
+							   ,A.emp_id
+							   ,A.duty_board_id
+							   ,A.milestone_id
+							   ,A.issue_board_st
+							   ,A.issue_open_st
+							   ,B.emp_name
+							   ,B.emp_picture
+							   ,B.code_name as officialName
+							   ,B.dept_name
+							   ,B.teamName
+							   ,NVL(C.reply_count,0) as replyCount
+							   ,D.milestone_name
+							   ,E.duty_board_title
+							FROM
+							    tb_issue_board A, tb_milestone D, tb_duty E,
+							    (
+		     	 				  SELECT issue_board_id,
+		     	 				  		 COUNT(*) AS reply_count
+     	 				  		  FROM tb_issue_reply
+     	 				  		  WHERE reply_group_code = 1
+     	 				  		  GROUP BY issue_board_id
+     	 				  		  ) C 
+							    ,(
+							      SELECT  D1.emp_id
+									     ,D1.emp_name
+									     ,D1.emp_picture
+									     ,D1.code_official_id
+									     ,D2.code_name
+									     ,D3.dept_name
+									     ,D4.dept_name teamName
+									FROM tb_emp D1, tb_code D2, tb_dept D3, tb_dept D4
+									WHERE D1.CODE_OFFICIAL_ID = D2.code_id
+									AND D1.dept_id = D3.dept_id
+									AND D1.team_id = D4.dept_id(+)
+									ORDER BY D1.code_official_id DESC
+							       ) B
+							WHERE A.emp_id = B.emp_id
+							AND A.milestone_id = D.milestone_id(+)
+							AND	A.issue_board_id = C.issue_board_id(+)
+							AND	A.duty_board_id = E.duty_board_id(+)
+							<if test='issueOpenSt == "Y"'>
+								AND A.issue_open_st = 'Y'
+							</if>
+							<choose>
+					       		<when test='isOpen == "open"'>
+					       			AND A.issue_board_st='Y'
+								</when>
+								<otherwise>
+					       			AND A.issue_board_st='N'
+								</otherwise>
+							</choose>
+							<include refid="search" />
+							ORDER BY issue_board_create_dt DESC
+						) D1
+				) D2
+				where seq <![CDATA[ >= ]]> #{firstIndex}
+			) D3
+		where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+	</select>
+	
+	<select id="selectIssueTotalCount" parameterType="issue" resultType="int">
+		SELECT
+		    COUNT(*)
+		FROM tb_issue_board A, tb_emp B
+		WHERE A.emp_id = B.emp_id
+		<choose>
+       		<when test='isOpen == "open"'>
+       			AND A.issue_board_st='Y'
+			</when>
+			<otherwise>
+       			AND A.issue_board_st='N'
+			</otherwise>
+		</choose>
+		<include refid="search" />
+	</select>
+	
+	<select id="selectIssueVO" parameterType="issue" resultType="issue">
+		SELECT
+		    A.issue_board_id
+		   ,A.issue_board_title
+		   ,A.issue_board_content
+		   ,A.issue_board_readcnt
+		   ,to_char(A.issue_board_create_dt,'YYYY.MM.DD HH24:MI:SS') issue_board_create_dt
+		   ,to_char(A.issue_board_update_dt,'YYYY.MM.DD HH24:MI:SS') issue_board_update_dt
+		   ,A.issue_board_updater_id
+		   ,A.emp_id
+		   ,A.duty_board_id
+		   ,A.milestone_id
+		   ,A.issue_board_st
+		   ,A.issue_open_st
+		   ,B.emp_name
+		   ,B.emp_picture
+		   ,C.duty_board_title
+		   ,NVL(D.replyCount,0) as replyCount
+		   ,NVL(E.openIssueCount,0) as openIssueCount
+    	   ,NVL(F.closedIssueCount,0) as closedIssueCount
+    	   ,G.milestone_Name
+		FROM
+		    tb_issue_board A, tb_emp B, tb_duty C, tb_milestone G
+		    ,(
+		      select issue_board_id, count(*) as replyCount
+		      from tb_issue_reply
+		      where issue_board_id = #{issueBoardId}
+		      and reply_group_code = 1
+		      group by issue_board_id
+		      ) D
+		    ,(SELECT milestone_id, count(*) as openIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'Y'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) E
+			,(SELECT milestone_id, count(*) as closedIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'N'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) F
+		WHERE A.emp_id = B.emp_id
+		AND A.duty_board_id = C.duty_board_id(+)
+		AND A.issue_board_id = D.issue_board_id(+)
+		AND A.milestone_id = E.milestone_id(+)
+		AND A.milestone_id = F.milestone_id(+)
+		AND A.milestone_id = G.milestone_id(+)
+		AND A.issue_board_id = #{issueBoardId}
+	</select>
+
+	<select id="selectMyIssueList" parameterType="emp" resultType="issue">
+		SELECT
+		    A.issue_board_id
+		   ,A.issue_board_title
+		   ,A.issue_board_content
+		   ,A.issue_board_readcnt
+		   ,to_char(A.issue_board_create_dt, 'yyyy.mm.dd HH24:MI:SS') as issueBoardCreateDt
+		   ,to_char(A.issue_board_update_dt, 'yyyy.mm.dd HH24:MI:SS') as issueBoardUpdateDt
+		   ,A.issue_board_updater_id
+		   ,A.emp_id
+		   ,A.duty_board_id
+		   ,A.milestone_id
+		   ,A.issue_board_st
+		   ,A.issue_project_st
+		   ,A.issue_open_st
+		   ,B.duty_board_title
+		FROM
+		    tb_issue_board A, tb_duty B
+		WHERE A.duty_board_id = B.duty_board_id(+)
+		AND emp_id = #{empId}
+		ORDER BY issueBoardUpdateDt DESC
+	</select>
+
+	<insert id="insertIssueReply" parameterType="issueReply">
+		<selectKey resultType="int" keyProperty="replyId" order="BEFORE">
+		    SELECT issue_reply_id_seq.nextval FROM dual
+		</selectKey>
+		INSERT INTO tb_issue_reply (
+		     reply_content
+		    ,reply_create_dt
+		    ,reply_update_dt
+		    ,reply_id
+		    ,issue_board_id
+		    ,emp_writer_id
+		    ,reply_group_code
+		) VALUES (
+		     #{replyContent}
+		    ,sysdate
+		    ,sysdate
+		    ,#{replyId}
+		    ,#{issueBoardId}
+		    ,#{empWriterId}
+		    ,#{replyGroupCode}
+		)
+	</insert>
+	
+	<update id="updateIssueReply" parameterType="issueReply">
+		UPDATE tb_issue_reply
+		    SET
+		        reply_content = #{replyContent}
+		WHERE
+		    reply_id = #{replyId}
+	</update>
+
+	<delete id="deleteIssueReply" parameterType="issueReply">
+		DELETE FROM tb_issue_reply
+		WHERE reply_id = #{replyId}
+	</delete>
+	
+	<delete id="deleteIssueReplyAll" parameterType="issue">
+		DELETE FROM tb_issue_reply
+		WHERE issue_board_id = #{issueBoardId}
+	</delete>
+	
+	<select id="selectIssueReplyList" parameterType="issue" resultType="issueReply">
+		SELECT
+		     A.reply_content
+		    ,A.reply_create_dt
+		    ,A.reply_update_dt
+		    ,A.reply_id
+		    ,A.issue_board_id
+		    ,A.emp_writer_id
+		    ,A.reply_group_code
+		    ,B.emp_name
+		    ,B.emp_picture
+		FROM
+		    tb_issue_reply A, tb_emp B
+		WHERE A.emp_writer_id=B.emp_id
+		AND issue_board_id = #{issueBoardId}
+		ORDER BY A.reply_id
+	</select>
+	
+	<select id="selectIssueReplyVO" parameterType="issueReply" resultType="issueReply">
+		SELECT
+		     A.reply_content
+		    ,A.reply_create_dt
+		    ,A.reply_update_dt
+		    ,A.reply_id
+		    ,A.issue_board_id
+		    ,A.emp_writer_id
+		    ,A.reply_group_code
+		    ,B.emp_name
+		    ,B.emp_picture
+		FROM
+		    tb_issue_reply A, tb_emp B
+		WHERE A.emp_writer_id=B.emp_id
+		AND issue_board_id = #{issueBoardId}
+		AND A.reply_id = #{replyId}
+	</select>
+	
+	<select id="selectIssueListByMilestoneId" parameterType="milestone" resultType="issue">
+		SELECT  A.issue_board_id
+			   ,A.issue_board_title
+			   ,A.issue_board_content
+			   ,A.issue_board_readcnt
+			   ,to_char(A.issue_board_create_dt,'YYYY.MM.DD') issue_board_create_dt
+			   ,to_char(A.issue_board_update_dt,'YYYY.MM.DD') issue_board_update_dt
+			   ,A.issue_board_updater_id
+			   ,A.emp_id
+			   ,A.duty_board_id
+			   ,A.milestone_id
+			   ,A.issue_board_st
+               ,B.milestone_name
+               ,C.emp_name
+               ,NVL(D.oppListCount,0) oppIssueCount
+               ,NVL(E.replyCount,0) as replyCount
+               ,F.duty_board_title
+		FROM tb_issue_board A, tb_milestone B, tb_emp C, tb_duty F
+			,(
+			  SELECT COUNT(*) oppListCount
+			   		,milestone_id
+				FROM tb_issue_board
+				WHERE 1=1
+				<choose>
+		       		<when test='isOpen == "open"'>
+		       			AND issue_board_st='N'
+					</when>
+					<otherwise>
+		       			AND issue_board_st='Y'
+					</otherwise>
+				</choose>
+				GROUP BY milestone_id
+			 ) D
+			,(
+			  SELECT issue_board_id,
+			  		 COUNT(*) AS replyCount
+	  		  FROM tb_issue_reply
+	  		  WHERE reply_group_code = 1
+	  		  GROUP BY issue_board_id
+	  		  ) E 
+		WHERE A.milestone_id = B.milestone_id(+)
+		AND A.emp_id = C.emp_id
+		AND A.milestone_id = D.milestone_id(+)
+		AND A.issue_board_id = E.issue_board_id(+)
+		AND A.duty_board_id = F.duty_board_id(+)
+        AND A.milestone_id = #{milestoneId}
+        <choose>
+       		<when test='isOpen == "open"'>
+       			AND A.issue_board_st='Y'
+			</when>
+			<otherwise>
+       			AND A.issue_board_st='N'
+			</otherwise>
+		</choose>
+		ORDER BY issue_board_update_dt DESC
+	</select>
+</mapper>
+
+

@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.emp.dao.EmpDAO">
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "np"'>
+				AND	(UPPER(A.EMP_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+					OR UPPER(A.EMP_HP)	LIKE UPPER('%' || #{searchKeyword} || '%')
+				)
+			</when>
+            <when test='searchCondition == "n"'>
+				AND	UPPER(A.EMP_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+			</when>
+            <when test='searchCondition == "p"'>
+				AND	UPPER(A.EMP_HP)		LIKE UPPER('%' || #{searchKeyword} || '%')
+			</when>
+		</choose>
+	</if>
+	<if test="searchAuth != null and searchAuth != ''">
+        <choose>
+            <when test='searchAuth == "c"'>
+				AND	A.auth_id = 'a01'
+			</when>
+            <when test='searchAuth == "t"'>
+				AND	A.auth_id = 'a02'
+			</when>
+            <when test='searchAuth == "e"'>
+				AND	A.auth_id = 'a03'
+			</when>
+            <when test='searchAuth == "a"'>
+				AND	A.auth_id = 'a04'
+			</when>
+            <when test='searchAuth == "h"'>
+				AND	A.auth_id = 'a05'
+			</when>
+            <when test='searchAuth == "g"'>
+				AND	A.auth_id = 'a06'
+			</when>
+            <when test='searchAuth == "s"'>
+				AND	A.auth_id = 'a07'
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<select id="selectEmpById" parameterType="str" resultType="emp">
+	SELECT  A.EMP_ID					
+			,A.EMP_SUP_ID				
+			,A.EMP_NAME				
+			,A.EMP_PWD				
+			,A.EMP_REGNO				
+			,NVL(A.EMP_HP,'없음') empHp       				
+			,A.EMP_SIGN				
+			,A.EMP_PICTURE			
+			,A.EMP_ST					
+			,A.EMP_ADD1	
+            ,A.EMP_ADD2
+            ,A.ATTEND_ST_ID
+			,A.DEPT_ID								
+			,A.EMP_CREATE_DT			
+			,A.EMP_UPDATE_DT
+			,NVL(A.EMP_EMAIL,'없음') empEmail
+			,A.AUTH_ID
+			,A.TEAM_ID
+			,A.CODE_OFFICIAL_ID 
+			,A.CODE_RESP_ID			
+            ,B.ATTEND_ST_NAME
+            ,A.EMP_UPDATE_YN
+            ,C.DEPT_NAME
+            ,D.CODE_NAME officialName
+            ,(
+                SELECT  F.DEPT_NAME
+                FROM    TB_EMP E, TB_DEPT F
+                WHERE   E.TEAM_ID = F.DEPT_ID
+                AND     E.EMP_ID = #{empId}
+              ) AS TEAM_NAME
+            ,NVL(E.AUTH_KO_NAME,'없음') as authName
+	  FROM TB_EMP A, TB_ATTEND_ST B, TB_DEPT C, TB_CODE D, TB_AUTH E
+	 WHERE A.ATTEND_ST_ID = B.ATTEND_ST_ID(+)
+       AND A.DEPT_ID = C.DEPT_ID
+       AND A.CODE_OFFICIAL_ID = D.CODE_ID
+       AND A.AUTH_ID = E.AUTH_ID(+)
+       AND A.EMP_ST IN (1, 4)
+       AND EMP_ID = #{empId}
+</select>
+
+
+<select id="selectOfficialById" parameterType="str" resultType="str">
+	select b.code_name
+      from tb_emp a, tb_code b
+     where b.code_group_id = 'O'
+       and a.code_official_id = b.code_id
+       and a.emp_id = #{empId}
+</select>
+
+<select id="selectDeptDetail" parameterType="str" resultType="deptDetail">
+	select a.dept_name					
+		   ,b.emp_id					
+		   ,b.emp_name					
+	   	   ,b.emp_hp					
+	 	   ,c.code_name		officialPositionName
+	 	   ,b.emp_email	
+	 	   ,d.attend_st_name		
+	  from tb_dept a 
+	       ,tb_emp b
+	       ,tb_code c
+	       ,tb_attend_st d
+	 where 1=1
+	   and a.dept_id = b.dept_id(+)
+	   and b.code_official_id = c.code_id
+	   and d.attend_st_id = b.ATTEND_ST_ID
+	   and (b.dept_id = #{deptId}
+	    or  b.TEAM_ID = #{deptId})
+	 order by c.code_id desc
+</select>
+
+<select id="selectDeptNameById" parameterType="str" resultType="str">
+	select b.dept_name
+	  from tb_emp a, tb_dept b
+	 where a.dept_id = b.dept_id
+	   and a.emp_id = #{empId}
+</select>
+
+<select id="selectEmpList" resultType="emp">
+	SELECT
+		    TB_EMP.EMP_ID
+		   ,TB_EMP.EMP_SUP_ID
+		   ,TB_EMP.EMP_NAME
+		   ,TB_EMP.EMP_PWD
+		   ,TB_EMP.AUTH_ID
+		   ,TB_EMP.CODE_OFFICIAL_ID
+		   ,TB_EMP.CODE_RESP_ID
+		   ,TB_EMP.EMP_REGNO     
+	       ,NVL(TB_EMP.EMP_HP,'없음') empHp       
+	       ,TB_EMP.EMP_SIGN      
+	       ,TB_EMP.EMP_PICTURE   
+	       ,TB_EMP.EMP_ST        
+		   ,TB_EMP.EMP_ADD1	
+           ,TB_EMP.EMP_ADD2     
+	       ,TB_EMP.DEPT_ID       
+	       ,TB_EMP.EMP_CREATE_DT 
+	       ,TB_EMP.EMP_UPDATE_DT 
+	       ,NVL(TB_EMP.EMP_EMAIL,'없음') empEmail     
+	       ,TB_EMP.ATTEND_ST_ID
+	       ,TB_ATTEND_ST.ATTEND_ST_NAME
+           ,TB_CODE.CODE_Name as officialName
+           ,TB_DEPT.DEPT_NAME
+           
+	FROM	TB_EMP, TB_ATTEND_ST, TB_CODE, TB_DEPT
+    WHERE   TB_EMP.ATTEND_ST_ID = TB_ATTEND_ST.ATTEND_ST_ID(+)
+    AND		TB_EMP.CODE_OFFICIAL_ID = TB_CODE.CODE_ID
+    AND     TB_EMP.DEPT_ID = TB_DEPT.DEPT_ID
+    AND		TB_EMP.EMP_ST IN (1,4)
+    ORDER BY TB_EMP.EMP_ID DESC
+
+</select>
+
+<select id="selectEmpPagingList" resultType="emp" parameterType="emp">
+		SELECT	
+		        emp_id      
+		        ,emp_name    
+		        ,emp_hp      
+		        ,emp_email   
+		        ,D3.officialName as official_name 
+		        ,dept_id     
+		        ,D3.deptName as dept_name   
+		        ,emp_picture 
+		        ,D3.authId as authId
+		        ,D3.koName as authName
+		FROM	( 
+		        SELECT	D2.*
+		        FROM    (	
+		                SELECT  ROWNUM as SEQ
+		                        ,D1.*
+		                FROM    (
+		                        SELECT		ROW_NUMBER() OVER(ORDER BY A.EMP_ID)
+			                                ,A.EMP_ID					
+			                                ,A.EMP_NAME	
+			                                ,A.EMP_HP			
+			                                ,A.EMP_EMAIL
+			                                ,C.CODE_NAME officialName
+			                                ,A.DEPT_ID								
+			                                ,B.DEPT_NAME deptName
+			                                ,A.EMP_PICTURE		
+			                                ,E.AUTH_KO_NAME koName	
+			                                ,E.AUTH_ID authId	
+			                    FROM		TB_EMP A
+			                    			,TB_DEPT B
+			                    			,TB_CODE C
+			                    			,TB_AUTH E
+		                        WHERE		A.DEPT_ID = B.DEPT_ID
+		                        AND			A.CODE_OFFICIAL_ID = C.CODE_ID
+		                        AND         A.AUTH_ID = E.AUTH_ID(+)
+		                        AND			A.EMP_ST IN (1,4)
+		                        <include refid="search" />
+		                        ORDER BY	A.EMP_ID DESC
+		                        ) D1
+		                ) D2
+		        WHERE	<![CDATA[ SEQ >= #{firstIndex} ]]>
+		        ) D3
+		WHERE	<![CDATA[ ROWNUM <= #{recordCountPerPage} ]]>  
+
+</select>
+
+<select id="selectNextEmpSeq" resultType="String">
+	SELECT LPAD(EMP_ID_SEQ.NEXTVAL, 4, 0) FROM DUAL
+</select>
+
+<select id="selectEmpListByOfficialId" parameterType="String" resultType="emp">
+	SELECT  emp_Name
+	        ,emp_id
+	FROM	TB_EMP
+	WHERE	CODE_OFFICIAL_ID = #{codeOfficialId}
+	
+</select>
+
+<select id="selectEmpPagingListByOfficialId" parameterType="emp" resultType="emp">
+	SELECT	
+	        D3.*
+	FROM	( 
+	        SELECT	D2.*
+	        FROM    (	
+	                SELECT  ROWNUM as RNUM
+	                        ,D1.*
+	                FROM    (
+	                       	SELECT  emp_Name
+                                       ,emp_id
+                            FROM	TB_EMP
+                            WHERE	CODE_OFFICIAL_ID = #{codeOfficialId}
+                            ORDER BY emp_id
+	                        ) D1
+	                ) D2
+               WHERE <![CDATA[ RNUM >= #{firstIndex} ]]>
+           ) D3
+	WHERE	<![CDATA[ ROWNUM <= #{recordCountPerPage} ]]>  
+</select>
+
+<select id="selectOfficialEmpCount" parameterType="emp" resultType="int">
+	SELECT  	COUNT(emp_id)
+	FROM		tb_emp
+	WHERE		code_official_id = #{codeOfficialId}
+	ORDER BY	emp_id 
+</select>
+
+<select id="selectEmpCount" parameterType="emp" resultType="int">
+    SELECT		COUNT(A.emp_id)
+    FROM		TB_EMP A
+    WHERE		A.emp_st IN (1,4)
+    <include refid="search" />
+</select>
+
+<select id="selectEmpIdListByDeptId" parameterType="emp" resultType="emp">
+	SELECT  emp_id
+	FROM	TB_EMP
+	WHERE	1=1
+	<if test='deptId != null and !"".equals(deptId) '>
+	AND		dept_id = #{deptId}
+	</if>
+	<if test='teamId != null and !"".equals(teamId) '>
+	AND		team_id = #{teamId}
+	</if>
+</select>
+
+
+<select id="selectEmpNameOfficialDeptByEmpId" resultType="emp">
+	SELECT	A.emp_id
+	        ,A.emp_name
+	        ,A.dept_id
+	        ,A.code_official_id
+	        ,B.dept_name
+	        ,C.code_name as official_name
+	FROM	tb_emp A
+		    ,tb_dept B
+		    ,tb_code C
+	WHERE   A.dept_id = B.dept_id
+	AND     A.code_official_id = C.code_id
+    AND     C.code_id IN('O04','O05','O06','O07','O08','O09','O10','O11')
+</select>
+
+<insert id="insertEmp" parameterType="emp">
+	INSERT INTO tb_emp (
+		    emp_id
+		   ,emp_sup_id
+		   ,emp_name
+		   ,emp_pwd
+		   ,emp_regno
+		   ,emp_hp
+		   ,emp_sign
+		   ,emp_picture
+		   ,emp_st
+		   ,emp_add1
+		   ,emp_add2
+		   ,dept_id
+		   ,emp_create_dt
+		   ,emp_update_dt
+		   ,emp_email
+		   ,auth_id
+		   ,code_official_id
+		   ,code_resp_id
+		   ,attend_st_id
+	) VALUES (
+		    #{empId}
+		   ,#{empSupId}
+		   ,#{empName}
+		   ,#{empPwd}
+		   ,#{empRegno}
+		   ,#{empHp}
+		   ,#{empSign}
+		   ,#{empPicture}
+		   ,1
+		   ,#{empAdd1}
+		   ,#{empAdd2}
+		   ,#{deptId}
+		   ,#{empCreateDt}
+		   ,sysdate
+		   ,#{empEmail}
+		   ,#{authId}
+		   ,#{codeOfficialId}
+		   ,#{codeRespId}
+		   ,1
+	)
+
+</insert>
+
+<update id="updateEmpPwd" parameterType="emp">
+	UPDATE tb_emp
+	   SET emp_pwd=#{empPwd}
+	      ,emp_update_yn = 'Y'
+	 WHERE emp_id =#{empId}
+</update>
+
+<update id="updateEmp" parameterType="emp">
+	UPDATE	tb_emp
+    <set>
+    	<if test="codeOfficialId != null and codeOfficialId != ''">code_official_id = #{codeOfficialId},</if>
+    	<if test="deptId != null and deptId != ''">dept_id = #{deptId},</if>
+    	<if test='authId != null and !"".equals(authId)'>auth_id = #{authId},</if>
+    	<if test='empPicture != null and !"".equals(empPicture)'>emp_picture = #{empPicture},</if>
+    </set>	
+	WHERE	emp_id = #{empId}
+</update>
+
+<select id="selectEmpByPwd" parameterType="emp" resultType="int">
+SELECT COUNT(EMP_ID)
+  FROM TB_EMP
+ WHERE EMP_ID = #{empId}
+   AND EMP_PWD = #{empPwd}
+
+</select>
+
+<select id="checkSignYn" parameterType="str" resultType="Str">
+SELECT 'Y'
+  FROM DUAL
+ WHERE EXISTS (
+        SELECT 1
+          FROM TB_EMP
+         WHERE EMP_SIGN IS NOT NULL
+           AND EMP_ID = #{empId}
+       )
+</select>
+
+<update id="updateSign" parameterType="emp">
+ UPDATE TB_EMP
+    SET EMP_SIGN = #{empId}||'.png'
+  WHERE EMP_ID = #{empId}
+</update>
+
+<update id="updateEmpMyPage" parameterType="emp">
+ UPDATE TB_EMP
+    SET EMP_HP = #{empHp}
+       ,EMP_EMAIL = #{empEmail}
+       ,EMP_ADD1 = #{empAdd1}
+       ,EMP_ADD2 = #{empAdd2}
+       ,ATTEND_ST_ID = #{attendStId}
+  WHERE EMP_ID = #{empId}
+</update>
+
+<select id="searchLoginUserList" parameterType="emp" resultType="emp">
+	SELECT  A.EMP_ID					
+			,A.EMP_SUP_ID				
+			,A.EMP_NAME				
+			,A.EMP_PWD				
+			,A.EMP_REGNO				
+			,A.EMP_HP					
+			,A.EMP_SIGN				
+			,A.EMP_PICTURE			
+			,A.EMP_ST					
+			,A.EMP_ADD1	
+            ,A.EMP_ADD2
+			,A.DEPT_ID								
+			,A.EMP_CREATE_DT			
+			,A.EMP_UPDATE_DT
+			,A.EMP_EMAIL
+			,A.AUTH_ID
+			,A.TEAM_ID
+			,A.CODE_OFFICIAL_ID 
+			,A.CODE_RESP_ID			
+            ,B.ATTEND_ST_NAME
+            ,A.EMP_UPDATE_YN
+            ,C.DEPT_NAME
+            ,D.CODE_NAME officialName
+            ,E.DEPT_NAME AS TEAM_NAME
+	  FROM TB_EMP A, TB_ATTEND_ST B, TB_DEPT C, TB_CODE D, TB_DEPT E
+	 WHERE A.ATTEND_ST_ID = B.ATTEND_ST_ID(+)
+       AND A.DEPT_ID = C.DEPT_ID
+       AND A.TEAM_ID = E.DEPT_ID(+)
+       AND A.CODE_OFFICIAL_ID = D.CODE_ID
+       AND EMP_NAME LIKE '%' || #{empName} || '%'
+</select>
+
+<select id="selectAuth" resultType="com.joinwork.common.dto.AuthVO">
+	SELECT
+		    auth_id
+		   ,auth_name
+		   ,auth_ko_name
+	FROM
+	    	tb_auth
+</select>
+
+<select id="selectMyDeptEmpList" parameterType="emp" resultType="emp">
+	SELECT  A.EMP_ID					
+			,A.EMP_SUP_ID				
+			,A.EMP_NAME				
+			,A.EMP_PWD				
+			,A.EMP_REGNO				
+			,A.EMP_HP					
+			,A.EMP_SIGN				
+			,A.EMP_PICTURE			
+			,A.EMP_ST					
+			,A.EMP_ADD1	
+            ,A.EMP_ADD2
+			,A.DEPT_ID								
+			,A.EMP_CREATE_DT			
+			,A.EMP_UPDATE_DT
+			,A.EMP_EMAIL
+			,A.AUTH_ID
+			,A.TEAM_ID
+			,A.CODE_OFFICIAL_ID 
+			,A.CODE_RESP_ID			
+            ,B.ATTEND_ST_NAME
+            ,A.EMP_UPDATE_YN
+            ,C.DEPT_NAME
+            ,D.CODE_NAME officialName
+            ,E.DEPT_NAME AS TEAM_NAME
+	  FROM TB_EMP A, TB_ATTEND_ST B, TB_DEPT C, TB_CODE D, TB_DEPT E
+	 WHERE A.ATTEND_ST_ID = B.ATTEND_ST_ID(+)
+       AND A.DEPT_ID = C.DEPT_ID
+       AND A.TEAM_ID = E.DEPT_ID(+)
+       AND A.CODE_OFFICIAL_ID = D.CODE_ID
+       AND A.dept_id = #{deptId}
+</select>
+
+</mapper>

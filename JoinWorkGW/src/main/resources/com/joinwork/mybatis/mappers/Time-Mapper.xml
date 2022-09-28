@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.common.dao.TimeDAO">
+	
+<select id="selectTime" resultType="time">
+SELECT
+    attend_time
+   ,leaving_time
+   ,emp_manager_id
+   ,lunch_start_time
+   ,lunch_end_time
+FROM
+    tb_attend_setting
+</select>
+
+<update id="updateTime" parameterType="time">
+UPDATE tb_attend_setting
+    SET
+        attend_time = #{attendTime}
+        ,leaving_time = #{leavingTime}
+        <if test='lunchStartTime != "" and lunchStartTime != null'>
+        ,lunch_start_time = #{lunchStartTime}
+        </if>
+        <if test='lunchEndTime != "" and lunchEndTime != null'>
+        ,lunch_end_time = #{lunchEndTime}
+        </if>
+</update>	
+    
+</mapper>
+
+

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.issue.dao.MilestoneDAO">
+	
+	<insert id="insertMilestone" parameterType="milestone">
+		INSERT INTO tb_milestone (
+		    milestone_id
+		   ,milestone_name
+		   ,milestone_create_dt
+		   ,milestone_end_dt
+		   ,milestone_update_dt
+		   ,milestone_st
+		   ,emp_id
+		   ,emp_name
+		) VALUES (
+		    milestone_id_seq.nextval
+		   ,#{milestoneName}
+		   ,sysdate
+		   ,TO_DATE(#{milestoneEndDt}, 'MM/DD/YYYY')
+		   ,sysdate
+		   ,'Y'
+		   ,#{empId}
+		   ,#{empName}
+		)
+	</insert>
+	
+	<update id="updateMilestone" parameterType="milestone">
+		UPDATE tb_milestone
+		    SET
+		    	milestone_update_dt = sysdate
+		    	<if test="milestoneName != null and milestoneName != ''">
+		    	,milestone_name = #{milestoneName}
+		    	</if>
+		    	<if test="milestoneEndDt != null and milestoneEndDt != ''">
+		    	,milestone_end_dt = TO_DATE(#{milestoneEndDt}, 'MM/DD/YYYY')
+		    	</if>
+		    	<if test="milestoneSt != null and milestoneSt != ''">
+		    	,milestone_st = #{milestoneSt}
+		    	</if>
+		WHERE
+		    milestone_id = #{milestoneId}
+	</update>
+    
+    <delete id="deleteMilestone" parameterType="milestone">
+    	DELETE FROM tb_milestone
+		WHERE
+		    milestone_id = #{milestoneId}
+    </delete>
+    
+    <select id="selectMilestoneList" parameterType="milestone" resultType="milestone">
+    	SELECT
+		    A.milestone_id
+		   ,A.milestone_name
+		   ,A.milestone_create_dt
+		   ,to_char(A.milestone_end_dt, 'yyyy-MM-dd') milestoneEndDt
+		   ,A.milestone_update_dt
+		   ,A.milestone_st
+		   ,A.emp_id
+		   ,A.emp_name
+		   ,NVL(B.openIssueCount,0) as openIssueCount
+    	   ,NVL(C.closedIssueCount,0) as closedIssueCount
+		FROM
+		    tb_milestone A
+		    ,(SELECT milestone_id, count(*) as openIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'Y'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) B
+			,(SELECT milestone_id, count(*) as closedIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'N'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) C
+		WHERE 1=1
+		<choose>
+       		<when test='isOpen == "open"'>
+       			AND milestone_st='Y'
+			</when>
+			<otherwise>
+       			AND milestone_st='N'
+			</otherwise>
+		</choose>
+		AND A.milestone_id = B.milestone_id(+)
+		AND A.milestone_id = C.milestone_id(+)
+		AND A.emp_id = #{empId}
+		ORDER BY milestone_update_dt DESC
+    </select>
+    
+    <select id="selectMilestone" parameterType="milestone" resultType="milestone">
+    	SELECT
+		     A.milestone_id
+		    ,A.milestone_name
+		    ,A.milestone_create_dt
+		    ,to_char(A.milestone_end_dt, 'MM/DD/YYYY') milestoneEndDt
+		    ,A.milestone_update_dt
+		    ,A.milestone_st
+		    ,A.emp_id
+		    ,A.emp_name
+			,NVL(B.openIssueCount,0) as openIssueCount
+    	    ,NVL(C.closedIssueCount,0) as closedIssueCount
+		FROM
+		    tb_milestone A
+		    ,(SELECT milestone_id, count(*) as openIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'Y'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) B
+			,(SELECT milestone_id, count(*) as closedIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'N'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) C
+		WHERE A.milestone_id = B.milestone_id(+)
+		AND A.milestone_id = C.milestone_id(+)
+		AND A.milestone_id = #{milestoneId}
+    </select>
+    
+    <select id="selectMilestoneListSimple" parameterType="milestone" resultType="milestone">
+    	SELECT
+		     A.milestone_id
+		    ,A.milestone_name
+		    ,A.milestone_create_dt
+		    ,A.milestone_end_dt
+		    ,A.milestone_update_dt
+		    ,A.milestone_st
+		    ,A.emp_id
+		    ,A.emp_name
+		    ,NVL(B.openIssueCount,0) as openIssueCount
+    	    ,NVL(C.closedIssueCount,0) as closedIssueCount
+		FROM
+		    tb_milestone A
+		    ,(SELECT milestone_id, count(*) as openIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'Y'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) B
+			,(SELECT milestone_id, count(*) as closedIssueCount
+				FROM tb_issue_board
+				WHERE issue_board_st = 'N'
+				GROUP BY milestone_id
+				ORDER BY milestone_id) C
+		WHERE A.milestone_id = B.milestone_id(+)
+		AND A.milestone_id = C.milestone_id(+)
+		AND A.emp_id = #{empId}
+    </select>
+</mapper>
+
+

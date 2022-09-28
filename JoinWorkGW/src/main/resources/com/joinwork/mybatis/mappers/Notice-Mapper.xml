@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.notice.dao.NoticeDAO">
+
+	<select id="selectNoticeById" parameterType="int" resultType="notice">
+		select
+			NOTICE_ID						
+			,NOTICE_TITLE                   
+			,NOTICE_CONTENT                 
+			,NOTICE_READCNT                 
+			,NOTICE_CREATE_DT               
+			,NOTICE_UPDATE_DT               
+			,NOTICE_UPDATER_ID              
+			,EMP_WRITER_ID                  
+			,NOTICE_END_DT            
+			,B.emp_name
+		from tb_notice A, tb_emp B 
+		where A.emp_writer_id=B.emp_id
+		and notice_id = #{noticeId}
+	</select>
+
+	<update id="increaseNoticeReadCnt" parameterType="int">
+		update
+		tb_notice
+		set
+		notice_readcnt=notice_readcnt+1
+		where notice_id = #{noticeId}
+	</update>
+	
+	<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "tcm"'>
+				AND	(A.notice_title LIKE '%' || #{searchKeyword} || '%'
+					OR A.notice_content LIKE '%' || #{searchKeyword} || '%'
+					OR B.emp_name LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	A.notice_title LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "c"'>
+				AND	A.notice_content LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "m"'>
+				AND	B.emp_name LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+	<if test="searchDt != null and searchDt != ''">
+		AND TO_CHAR(A.NOTICE_CREATE_DT,'yyyyMMdd') = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'),'yyyyMMdd')
+	</if>
+</sql>
+	
+	<insert id="insertNotice" parameterType="notice">
+	<selectKey resultType="int" keyProperty="noticeId" order="BEFORE">
+	    SELECT tb_notice_seq.nextval FROM dual
+	</selectKey>
+		INSERT INTO tb_notice (
+		    notice_id,
+		    notice_title,
+		    <if test='noticeContent != null and noticeContent != ""'>
+		    notice_content,
+		    </if>
+		    notice_readcnt,
+		    notice_create_dt,
+		    notice_update_dt,
+		    notice_updater_id,
+		    emp_writer_id,
+		    notice_important_yn
+		) VALUES (
+		    #{noticeId},
+		    #{noticeTitle},
+		    <if test='noticeContent != null and noticeContent != ""'>
+		    #{noticeContent},
+		    </if>
+		    0,
+		    sysdate,
+		    sysdate,
+		    #{noticeUpdaterId},
+		    #{empWriterId},
+		    #{noticeImportantYN}
+		)
+	</insert>
+	
+	<select id="selectNoticeList" parameterType="notice" resultType="notice">
+		select D3.*
+		  from(
+				select D2.*
+				from(
+					  select rownum as seq, D1.*
+					  from(
+							SELECT
+								    A.notice_id
+								   ,A.notice_title
+								   ,A.notice_content
+								   ,A.notice_readcnt
+								   ,A.notice_create_dt
+								   ,A.notice_update_dt
+								   ,A.notice_updater_id
+								   ,A.emp_writer_id
+								   ,A.notice_end_dt
+								   ,A.notice_important_yn
+								   ,B.emp_name
+								   ,C.CODE_NAME officialName
+								   ,D.attachCount
+								FROM tb_notice A 
+								     ,tb_emp B 
+								     ,TB_CODE C
+								     ,(
+                                        SELECT notice_id,
+                                               COUNT(*) as attachCount
+                                        FROM tb_notice_attach 
+                                        GROUP BY notice_id
+                                       ) D
+								WHERE A.emp_writer_id = B.emp_id
+								  AND B.CODE_OFFICIAL_ID = C.CODE_ID
+								  AND A.notice_id = D.notice_id(+)
+								  <include refid="search" />
+								ORDER BY A.notice_create_dt DESC
+						) D1
+				) D2
+				where seq <![CDATA[ >= ]]> #{firstIndex}
+			) D3
+		where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+	</select>
+	
+	<select id="selectNoticeListTotalCount" parameterType="notice" resultType="int">	
+		SELECT
+		    COUNT(*)
+		FROM tb_notice A 
+		     JOIN tb_emp B
+	     	 ON A.emp_writer_id=B.emp_id
+		WHERE 1=1
+		<include refid="search" />
+	</select>
+	
+	<select id="selectNoticeSeqNext" resultType="int">
+		select tb_notice_seq.nextval as noticeId from dual
+	</select>
+	
+	<insert id="insertNoticeFile" parameterType="noticeAttach">
+	INSERT INTO tb_notice_attach (
+		     attach_id
+		    ,attach_path
+		    ,attach_name
+		    ,attach_type
+		    ,attach_create_dt
+		    ,notice_id
+		    ,emp_attacher_id
+	) VALUES (
+		    tb_notice_attach_seq.nextval
+		   ,#{attachPath}
+		   ,#{attachName}
+		   ,#{attachType}
+		   ,sysdate
+		   ,#{noticeId}
+		   ,#{empAttacherId}
+ 	)
+ 	</insert>
+	
+	<select id="selectImportantNoticeList" resultType="notice">
+	SELECT T1.notice_id
+          ,T1.notice_title
+          ,T1.notice_content
+          ,T1.notice_readcnt
+          ,T1.notice_create_dt
+          ,T1.notice_update_dt
+          ,T1.notice_updater_id
+          ,T1.emp_writer_id
+          ,T1.notice_end_dt
+          ,T1.notice_important_yn
+          ,T1.emp_name
+          ,T1.officialName
+          ,T1.attachCount
+          ,ROWNUM
+	  FROM (
+	            SELECT
+	                A.notice_id
+	               ,A.notice_title
+	               ,A.notice_content
+	               ,A.notice_readcnt
+	               ,A.notice_create_dt
+	               ,A.notice_update_dt
+	               ,A.notice_updater_id
+	               ,A.emp_writer_id
+	               ,A.notice_end_dt
+	               ,A.notice_important_yn
+	               ,B.emp_name
+	               ,C.CODE_NAME officialName
+	               ,D.attachCount
+	            FROM tb_notice A 
+	                 ,tb_emp B 
+	                 ,TB_CODE C
+	                 ,(
+	                 	SELECT notice_id,
+                         COUNT(*) as attachCount
+	                     FROM tb_notice_attach 
+	                     GROUP BY notice_id
+                     ) D
+	            WHERE A.emp_writer_id = B.emp_id
+	              AND B.CODE_OFFICIAL_ID = C.CODE_ID
+	              AND A.notice_important_yn = 'Y'
+	              AND A.notice_id = D.notice_id(+)
+                  ORDER BY A.notice_create_dt DESC ) T1
+	 WHERE ROWNUM <![CDATA[ <= ]]> 3 
+	</select>
+	
+	<select id="selectEmergency" resultType="notice">
+		SELECT
+		    notice_id
+		   ,notice_title
+		   ,notice_content
+		   ,notice_readcnt
+		   ,notice_create_dt
+		   ,notice_update_dt
+		   ,notice_updater_id
+		   ,emp_writer_id
+		   ,notice_end_dt
+		   ,notice_important_yn
+		FROM
+		    tb_notice
+		WHERE notice_important_yn = 'E'
+	</select>
+	
+	<select id="selectNoticeAttachList" parameterType="notice" resultType="noticeAttach">
+		SELECT
+		    attach_id
+		    ,attach_path
+		    ,attach_name
+		    ,attach_type
+		    ,attach_create_dt
+		    ,notice_id
+		    ,emp_attacher_id
+		FROM
+    		tb_notice_attach
+    	WHERE notice_id=#{noticeId}
+	</select>
+	
+	<select id="selectNoticeAttachById" parameterType="noticeAttach" resultType="noticeAttach">
+		SELECT
+		     attach_id
+		    ,attach_path
+		    ,attach_name
+		    ,attach_type
+		    ,attach_create_dt
+		    ,emp_attacher_id
+		    ,notice_id
+		FROM
+		    tb_notice_attach
+		WHERE notice_id=#{noticeId}
+	AND attach_id=#{attachId}
+	</select>
+	
+	<update id="updateNotice" parameterType="notice">
+		UPDATE tb_notice
+		    SET
+	        notice_title = #{noticeTitle}
+	        <if test='noticeContent != null and noticeContent != ""'>
+		    ,notice_content = #{noticeContent}
+	        </if>
+		    ,notice_update_dt = sysdate
+		    ,notice_updater_id = #{noticeUpdaterId}
+		WHERE
+		    notice_id = #{noticeId}
+	</update>
+	
+	<delete id="deleteNotice" parameterType="notice">
+		DELETE FROM tb_notice
+		WHERE
+		    notice_id = #{noticeId}
+	</delete>
+	
+	<delete id="deleteEmergency">
+		DELETE FROM tb_notice
+		WHERE
+		    notice_important_yn = 'E'
+	</delete>
+	
+	<delete id="deleteNoticeFile" parameterType="notice">
+		DELETE FROM tb_notice_attach
+		WHERE
+		    notice_id = #{noticeId}
+	</delete>
+	
+	<delete id="deleteNoticeFileById" parameterType="noticeAttach">
+		DELETE FROM tb_notice_attach
+		WHERE
+		    notice_id = #{noticeId}
+		AND attach_id = #{attachId}
+	</delete>
+	
+	
+</mapper>
+
+ 

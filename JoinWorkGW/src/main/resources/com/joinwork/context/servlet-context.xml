@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:websocket="http://www.springframework.org/schema/websocket"
+	xsi:schemaLocation="http://www.springframework.org/schema/websocket http://www.springframework.org/schema/websocket/spring-websocket-4.3.xsd
+		http://www.springframework.org/schema/mvc https://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd">
+
+	<!-- DispatcherServlet Context: defines this servlet's request-processing infrastructure -->
+	
+	<!-- Enables the Spring MVC @Controller programming model -->
+	<annotation-driven />
+
+	<!-- Handles HTTP GET requests for /resources/** by efficiently serving up static resources in the ${webappRoot}/resources directory -->
+	<resources mapping="/resources/**" location="/resources/" />
+	<!-- 회원프로필 업로드 경로 -->
+	<resources mapping="/resources/member/**" location="/resources/image/memberProfile/" />
+
+	<view-controller path="/" view-name="index"/>
+	
+	<interceptors>
+		<interceptor>
+			<mapping path="/common/login"/>
+			<beans:bean class="com.joinwork.util.interceptor.LoginUserLogInterceptor"/>
+		</interceptor>
+		<interceptor>
+			<mapping path="/**"/>
+			<exclude-mapping path="/common/login"/>
+			<exclude-mapping path="/common/loginForm"/>
+			<exclude-mapping path="/resources/**"/>
+			<exclude-mapping path="/attend/insertStartWorkQR"/>
+			<exclude-mapping path="/m/home"/>
+			<beans:bean class="com.joinwork.util.interceptor.LoginInterceptor"/>
+		</interceptor>
+		<interceptor>
+			<mapping path="/admin/**"/>
+			<exclude-mapping path="/admin/access_denied"/>
+			<beans:bean class="com.joinwork.util.interceptor.AdminInterceptor"/>
+		</interceptor>
+	</interceptors>
+	
+	<!-- Resolves views selected for rendering by @Controllers to .jsp resources in the /WEB-INF/views directory -->
+	
+	<beans:bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/views/" />
+		<beans:property name="suffix" value=".jsp" />
+		<beans:property name="order" value="3"/>
+	</beans:bean>
+
+	
+	<!-- File IO 관련 -->
+	<beans:bean id="multipartResolver"
+				class="org.springframework.web.multipart.commons.CommonsMultipartResolver"
+				p:defaultEncoding="utf-8"
+	/>
+	
+	<!-- Tiles -->	
+	<beans:bean id="tilesConfigurer" class="org.springframework.web.servlet.view.tiles3.TilesConfigurer">
+		<beans:property name="definitions" >
+			<beans:list>
+				<beans:value>/WEB-INF/tiles/tiles.xml</beans:value>
+			</beans:list>
+		</beans:property>
+	</beans:bean>
+	
+	<beans:bean class="org.springframework.web.servlet.view.UrlBasedViewResolver">
+		<beans:property name="viewClass" value="org.springframework.web.servlet.view.tiles3.TilesView" />
+		<beans:property name="order" value="2" />
+	</beans:bean>
+	
+	<beans:bean class="org.springframework.web.servlet.view.BeanNameViewResolver">
+		<beans:property name="order" value="1"></beans:property>
+	</beans:bean>
+	
+	<beans:bean id="jsonView" class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
+		<beans:property name="contentType" value="application/json;charset=UTF-8"></beans:property>
+	</beans:bean>
+	
+	<beans:bean id="excelDownloadView" class="com.joinwork.util.excel.ExcelDownloadView"/>
+	
+	<!-- websocket -->
+	<beans:bean id="echoHandler" class="com.joinwork.util.EchoHandler" />
+	<websocket:handlers>
+	    <websocket:mapping handler="echoHandler" path="/echo-ws" />
+	    <websocket:handshake-interceptors>
+	        <beans:bean class="org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor" />
+	    </websocket:handshake-interceptors>	
+	    <websocket:sockjs />
+	</websocket:handlers>
+	
+	<context:component-scan base-package="com.joinwork" />
+	
+	
+	
+</beans:beans>

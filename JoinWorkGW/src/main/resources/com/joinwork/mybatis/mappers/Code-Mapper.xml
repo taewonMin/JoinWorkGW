@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.common.dao.CodeDAO">
+
+	<select id="selectAllCode" resultType="com.joinwork.common.dto.CodeVO">
+		SELECT
+		    code_id
+		   ,code_name
+		   ,code_group_name
+		   ,code_yn
+		   ,code_group_id
+		FROM
+		    tb_code
+	</select>
+
+	<select id="selectTargetCodeName" parameterType="com.joinwork.common.dto.CodeVO" resultType="com.joinwork.common.dto.CodeVO">
+		SELECT
+			code_id
+		    ,code_name
+		FROM
+		    tb_code
+		where 1=1
+		<if test="codeGroupId != null and codeGroupId != ''">
+		and code_group_id = #{codeGroupId}
+		</if>
+		<if test="codeId != null and codeId != ''">
+		and code_id = #{codeId}
+		</if>
+	</select>
+	
+	<select id="selectAllOfficialList" resultType="com.joinwork.common.dto.CodeVO">
+		SELECT			 TB_CODE.code_id as codeId
+			      		,TB_CODE.code_name as codeName
+			      		,count(TB_EMP.emp_id) as useCount
+		FROM 			 TB_CODE
+		LEFT OUTER JOIN  TB_EMP on (TB_CODE.code_id = TB_EMP.code_official_id)
+		WHERE			 TB_CODE.CODE_GROUP_ID = 'O'                            
+		GROUP BY		 TB_CODE.code_id
+		       			,TB_CODE.code_name
+		ORDER BY		 TB_CODE.code_id
+	</select>
+	
+	<select id="selectOfficialNextId" resultType="String">
+		SELECT 	'O'||TO_CHAR(OFFICIAL_ID_SEQ.NEXTVAL)
+		FROM 	DUAL
+	</select>
+	
+	<select id="dupleCheckCodeName" parameterType="String" resultType="int">
+		SELECT	COUNT(code_name)
+		FROM	tb_code
+		WHERE	code_name = #{codeName}
+	</select>
+	
+	<insert id="insertCode" parameterType="com.joinwork.common.dto.CodeVO">
+		INSERT INTO TB_CODE (
+		    code_id
+		   ,code_name
+		   ,code_group_name
+		   ,code_yn
+		   ,code_group_id
+		) VALUES (
+		    #{codeId}
+		   ,#{codeName}
+		   ,#{codeGroupName}
+		   ,#{codeYn}
+		   ,#{codeGroupId}
+		)
+	</insert>
+	
+	<update id="updateCode" parameterType="com.joinwork.common.dto.CodeVO">
+		UPDATE	TB_CODE
+		SET		code_name = #{codeName}
+		WHERE	code_id = #{codeId}
+	</update>
+</mapper>

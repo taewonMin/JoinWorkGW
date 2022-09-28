@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+	
+	<!-- imgPath -->
+	<bean id="signPath" class="java.lang.String">
+		<constructor-arg value="${emp.sign}" />      
+	</bean>
+	
+	<bean id="picturePath" class="java.lang.String">
+		<constructor-arg value="${emp.picture}"/>
+	</bean>
+	<bean id="picturePath_meetRoom" class="java.lang.String">
+		<constructor-arg value="${meetRoom.picture}"/>
+	</bean>
+	
+	<bean id="picturePath_QR" class="java.lang.String">
+		<constructor-arg value="${emp.QR.picture}"/>
+	</bean>
+	
+	<bean id="approvalAttach" class="java.lang.String">
+		<constructor-arg value="${approval}"/>
+	</bean>
+	
+	<!-- 기타 -->
+	<!-- log file -->
+	<bean id="logFilePath" class="java.lang.String">
+		<constructor-arg value="${log}"/>
+	</bean>
+	
+	<!-- file upload -->
+	<bean id="fileUploadPath_notice" class="java.lang.String">
+		<constructor-arg value="${board.notice}"/>
+	</bean>
+	<bean id="fileUploadPath_duty" class="java.lang.String">
+		<constructor-arg value="${board.duty}"/>
+	</bean>
+	<bean id="fileUploadPath_doc" class="java.lang.String">
+		<constructor-arg value="${doc}"/>
+	</bean>
+	<bean id="fileUploadPath_meetRoom" class="java.lang.String">
+		<constructor-arg value="${meetRoom}"/>
+	</bean>
+	<bean id="fileUploadPath_excel" class="java.lang.String">
+		<constructor-arg value="${excel}"/>
+	</bean>
+	<bean id="fileUploadPath_QR" class="java.lang.String">
+		<constructor-arg value="${emp.QR}"/>
+	</bean>
+<!-- 	<bean id="fileUploadPath_emp" class="java.lang.String"> -->
+<!-- 		<constructor-arg value="${emp}"/> -->
+<!-- 	</bean> -->
+	
+	<!-- data properties -->
+	<bean id="privateAddBookId" class="java.lang.Integer">
+		<constructor-arg value="${privateAddBookId}"/>
+	</bean>
+	<bean id="companyAddBookId" class="java.lang.Integer">
+		<constructor-arg value="${companyAddBookId}"/>
+	</bean>
+	<bean id="privateCodeAddId" class="java.lang.String">
+		<constructor-arg value="${privateCodeAddId}"/>
+	</bean>
+	<bean id="companyCodeAddId" class="java.lang.String">
+		<constructor-arg value="${companyCodeAddId}"/>
+	</bean>
+
+	<!-- service -->
+	<bean id="treeViewService" 
+		  class="com.joinwork.treeview.service.TreeViewService"
+	      p:treeViewDAO-ref="treeViewDAO"
+	/>
+	<bean id="empService" 
+		  class="com.joinwork.emp.service.EmpService"
+		  p:empDAO-ref="empDAO"
+	/>
+ 	<bean id="cacService"
+ 		  class="com.joinwork.board.cac.service.CacService"
+ 		  p:cacDAO-ref="cacDAO"
+ 	/>
+	<bean id="dutyService"
+		  class="com.joinwork.board.duty.service.DutyService"
+		  p:dutyDAO-ref="dutyDAO"
+	/>
+	<bean id="scheduleService" 
+		  class="com.joinwork.scheduler.service.ScheduleService"
+		  p:scheduleDAO-ref="scheduleDAO"
+	/>
+	<bean id="approvalService" 
+		  class="com.joinwork.approval.service.ApprovalService"
+		  p:approvalDAO-ref="approvalDAO"
+		  p:empDAO-ref="empDAO"
+	/>
+<!-- 	<bean id="attendenceService"  -->
+<!-- 		  class="com.joinwork.attend.service.AttendenceService" -->
+<!-- 		  p:attendenceDAO-ref="attendenceDAO" -->
+<!-- 	/> -->
+	<bean id="codeService"
+		  class="com.joinwork.common.service.CodeService"
+		  p:codeDAO-ref="codeDAO"
+	 />
+	<bean id="deptService"
+		  class="com.joinwork.common.service.DeptService"
+		  p:deptDAO-ref="deptDAO"
+	/>
+	<bean id="excelService"
+		  class="com.joinwork.util.excel.service.ExcelService"
+	/>
+	<bean id="addBookService"
+		  class="com.joinwork.addbook.service.AddBookService"
+		  p:addBookDAO-ref="addBookDAO"
+	/>
+	<bean id="docService"
+		  class="com.joinwork.doc.service.DocService"
+		  p:docDAO-ref="docDAO"
+	/>
+
+
+
+
+</beans>

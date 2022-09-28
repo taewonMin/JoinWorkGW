@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/task"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:c="http://www.springframework.org/schema/c"
+	xsi:schemaLocation="http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.2.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+	<!--스케줄러에서 읽어올 서비스 -->
+	<context:component-scan base-package="com.joinwork.reservation.service"/>
+	
+	<!--스케줄러가 작업할 클래스-->
+	<beans:bean id="attendenceScheduler"
+			 class="com.joinwork.scheduling.service.AttendenceScheduler"
+	/>
+	<beans:bean id="meetRoomScheduler"
+			 class="com.joinwork.scheduling.service.MeetRoomScheduler"
+	/>
+	<beans:bean id="qtScheduler"
+			 class="com.joinwork.scheduling.service.QtScheduler"
+	/>
+
+	<scheduler id="taskSchedule"/>
+	
+
+
+   
+	<!--잡은 클래스 안에 스케줄러가 실행할 메서드와 시간-->
+	<scheduled-tasks scheduler="taskSchedule">
+   
+		<!--참조할것 /참조한클래스안에 수행할 메서드 / 수행할 시간 8분마다 실행-->
+		<scheduled ref="attendenceScheduler"
+	               method="attTest"
+	               fixed-delay="80000"/>
+	               
+		<scheduled ref="qtScheduler"
+	               method="modifySt"
+	               fixed-delay="80000"/>
+	               
+	   
+<!-- 		<scheduled ref="meetRoomScheduler" -->
+<!-- 	               method="meetTest" -->
+<!-- 	               cron="0/05 * * * * * "/> -->
+               
+	</scheduled-tasks>
+	
+
+
+</beans:beans>

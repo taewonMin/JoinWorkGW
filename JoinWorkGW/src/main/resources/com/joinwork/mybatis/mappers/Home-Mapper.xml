@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.common.dao.HomeDAO">
+
+<!-- 근태관리 -->
+<select id="selectAttenceByEmpIdAndSysDate" parameterType="attendence" resultType="attendence">
+SELECT A.HISTORY_ATTEND_TIME
+       ,A.HISTORY_LEAVING_TIME
+       ,A.HISTORY_ID
+       ,A.EMP_ID
+       ,A.ATTEND_ST_ID
+       ,A.HISTORY_REASON
+       ,C.ATTEND_ST_NAME
+  FROM TB_ATTEND_HISTORY A
+       ,TB_EMP B
+       ,TB_ATTEND_ST C
+ WHERE A.EMP_ID = B.EMP_ID
+   AND B.ATTEND_ST_ID = C.ATTEND_ST_ID
+   AND A.EMP_ID = #{empId}
+   AND TO_CHAR(A.HISTORY_ATTEND_TIME,'yy/MM/dd') = TO_CHAR(SYSDATE,'yy/MM/dd')
+</select>
+
+<select id="selectAttenceWeeklyByEmpId" parameterType="attendence" resultType="attendence">
+SELECT HISTORY_ATTEND_TIME
+       ,HISTORY_LEAVING_TIME
+       ,HISTORY_ID
+       ,EMP_ID
+       ,ATTEND_ST_ID
+       ,HISTORY_REASON
+  FROM TB_ATTEND_HISTORY 
+ WHERE EMP_ID = #{empId}
+   AND HISTORY_ATTEND_TIME <![CDATA[ >= ]]> (SELECT TRUNC(SYSDATE,'iw') FROM DUAL)
+   AND HISTORY_ATTEND_TIME <![CDATA[ <= ]]> (SELECT TRUNC(SYSDATE,'iw')+4 FROM DUAL)
+
+</select>
+	
+<!-- 게시판	 -->
+<select id="selectImportantNoticeList" resultType="notice">
+SELECT  A.NOTICE_ID
+       ,A.NOTICE_TITLE
+       ,A.NOTICE_CONTENT
+       ,A.NOTICE_READCNT
+       ,A.NOTICE_CREATE_DT
+       ,A.NOTICE_UPDATE_DT
+       ,A.NOTICE_UPDATER_ID
+       ,A.EMP_WRITER_ID
+       ,A.NOTICE_END_DT
+       ,A.NOTICE_IMPORTANT_YN
+       ,B.EMP_NAME
+       ,C.CODE_NAME officialName
+  FROM TB_NOTICE A, 
+       TB_EMP B, 
+       TB_CODE C
+ WHERE A.EMP_WRITER_ID = B.EMP_ID
+   AND B.CODE_OFFICIAL_ID = C.CODE_ID
+   AND NOTICE_IMPORTANT_YN = 'Y'
+ ORDER BY A.NOTICE_CREATE_DT DESC
+</select>
+
+<select id="selectNoticeList" resultType="notice">
+SELECT  A.NOTICE_ID
+       ,A.NOTICE_TITLE
+       ,A.NOTICE_CONTENT
+       ,A.NOTICE_READCNT
+       ,A.NOTICE_CREATE_DT
+       ,A.NOTICE_UPDATE_DT
+       ,A.NOTICE_UPDATER_ID
+       ,A.EMP_WRITER_ID
+       ,A.NOTICE_END_DT
+       ,A.NOTICE_IMPORTANT_YN
+       ,B.EMP_NAME
+       ,C.CODE_NAME officialName
+  FROM TB_NOTICE A, 
+  	   TB_EMP B, 
+       TB_CODE C
+ WHERE A.EMP_WRITER_ID = B.EMP_ID
+   AND B.CODE_OFFICIAL_ID = C.CODE_ID
+ ORDER BY A.NOTICE_CREATE_DT DESC
+</select>
+<select id="selectCACList" resultType="cac">
+SELECT A.CAC_BOARD_ID,
+       A.CAC_BOARD_TITLE,
+       A.CAC_BOARD_CONTENT,
+       A.CAC_BOARD_READCNT,
+       A.CAC_BOARD_CREATE_DT,
+       A.CAC_BOARD_UPDATE_DT,
+       A.CAC_BOARD_UPDATER_ID,
+       A.EMP_WRITER_ID,
+       A.CAC_BOARD_END_DT,
+       TO_CHAR(A.CAC_START_DT,'yyyy-mm-dd') cacStartDt,
+	   TO_CHAR(A.CAC_END_DT,'yyyy-mm-dd') cacEndDt,
+       A.CAC_CATEGORY,
+       B.EMP_NAME,
+       C.CODE_NAME officialName
+  FROM TB_CAC_BOARD A
+       ,TB_EMP B
+       ,TB_CODE C
+ WHERE A.EMP_WRITER_ID = B.EMP_ID
+   AND B.CODE_OFFICIAL_ID = C.CODE_ID
+ ORDER BY A.CAC_BOARD_CREATE_DT DESC
+
+</select>
+
+
+<!-- 일정관리 -->
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "ftd"'>
+				AND	(A.APPROVAL_TITLE LIKE '%' || #{searchKeyword} || '%'
+					OR FORM_NAME LIKE '%' || #{searchKeyword} || '%'
+					OR B.DOC_ID LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "f"'>
+				AND	C.FORM_NAME LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	A.APPROVAL_TITLE LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "d"'>
+				AND	B.DOC_ID LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+	<if test="searchDt != null and searchDt != ''">
+		AND TO_CHAR(A.APPROVAL_RECOMMAND_DT) = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'))
+	</if>
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "1"'>
+				AND A.APPROVAL_ST = 1
+			</when>
+			<when test='searchState == "2"'>
+				AND A.APPROVAL_ST = 2
+			</when>
+			<when test='searchState == "3"'>
+				AND A.APPROVAL_ST = 3
+			</when>
+		</choose>
+	</if>
+</sql>
+
+
+
+<select id="selectCheckingScheduleList" parameterType="schedule" resultType="schedule">
+		SELECT  SCHEDULE_ID
+		       ,SCHEDULE_TITLE
+		       ,SCHEDULE_CONTENT
+		       ,SCHEDULE_CREATE_DT
+		       ,TO_CHAR(SCHEDULE_START_DT,'MM-dd hh24:mi') scheduleStartDt
+		       ,TO_CHAR(SCHEDULE_END_DT,'MM-dd hh24:mi') scheduleEndDt
+		       ,SCHEDULE_IMP
+		       ,SCHEDULE_ST
+		       ,SCHEDULE_WRITER_ID
+		       ,SCHEDULE_LOCATION 
+		       ,CODE_SCHEDULE_ID
+		       ,DEPT_ID
+		       ,(SELECT TO_CHAR(TO_DATE(#{checkDt}),'DAY') FROM DUAL) dayOfWeek
+		       ,SUBSTR(#{checkDt},9) myDate
+		FROM	TB_SCHEDULE 
+		WHERE 	1=1
+		AND		SCHEDULE_ST IN (1,2)
+		AND 	TO_CHAR(SCHEDULE_START_DT,'YYYY-MM-DD') <![CDATA[ <= ]]> #{checkDt}
+		AND 	TO_CHAR(SCHEDULE_END_DT,'YYYY-MM-DD') <![CDATA[ >= ]]> #{checkDt}
+		AND 	SCHEDULE_ST IN (1,2)
+		and(
+		                (SCHEDULE_WRITER_ID = #{scheduleWriterId}
+		                AND		CODE_SCHEDULE_ID IN ('S01','S02','S03','S04'))
+		        or      (code_schedule_id = 'S02'
+		        )
+		        or      (code_schedule_id = 'S03' 
+		                AND DEPT_ID = (SELECT DEPT_ID 
+		                				 FROM TB_EMP
+		                			    WHERE EMP_ID = #{scheduleWriterId})
+		                ) 
+		        or      (code_schedule_id = 'S04'
+		                 AND dept_id = (SELECT TEAM_ID
+		                				  FROM TB_EMP
+		                			     WHERE EMP_ID = #{scheduleWriterId})
+		        )
+		)        
+		ORDER BY SCHEDULE_START_DT
+
+</select>
+
+<select id="selectCheckingScheduleListCount" parameterType="schedule" resultType="int">
+		SELECT  COUNT(SCHEDULE_ID)
+		FROM	TB_SCHEDULE 
+		WHERE 	1=1
+		AND		SCHEDULE_ST IN (1,2)
+		AND 	TO_CHAR(SCHEDULE_START_DT,'YYYY-MM-DD') <![CDATA[ <= ]]> #{checkDt}
+		AND 	TO_CHAR(SCHEDULE_END_DT,'YYYY-MM-DD') <![CDATA[ >= ]]> #{checkDt}
+		and(
+		                (SCHEDULE_WRITER_ID = #{scheduleWriterId}
+		                AND		CODE_SCHEDULE_ID IN ('S01','S02','S03','S04'))
+		        or      (code_schedule_id = 'S02'
+		        )
+		        or      (code_schedule_id = 'S03' 
+		                AND DEPT_ID = (SELECT DEPT_ID
+		                				 FROM TB_EMP
+		                			    WHERE EMP_ID = #{scheduleWriterId})
+		                ) 
+		        or      (code_schedule_id = 'S04'
+		                 AND dept_id = (SELECT TEAM_ID
+		                				  FROM TB_EMP
+		                			     WHERE EMP_ID = #{scheduleWriterId})
+		        )
+		)        
+		ORDER BY SCHEDULE_START_DT
+</select>
+	
+	
+	
+	
+</mapper>

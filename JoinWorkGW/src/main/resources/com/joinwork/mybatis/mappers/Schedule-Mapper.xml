@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.scheduler.dao.ScheduleDAO">
+
+	<sql id="search">
+		<if test="searchKeyword != null and searchKeyword != ''">
+	        <choose>
+	            <when test='searchCondition == "tc"'>
+	            	AND     (schedule_title			LIKE '%' || #{searchKeyword} || '%'
+							OR schedule_content		LIKE '%' || #{searchKeyword} || '%'
+					)
+				</when>
+	            <when test='searchCondition == "t"'>
+					AND     schedule_title 		LIKE '%' || #{searchKeyword} || '%'
+				</when>
+	            <when test='searchCondition == "c"'>
+					AND     schedule_content 	LIKE '%' || #{searchKeyword} || '%'
+				</when>
+			</choose>
+		</if>
+		<if test="searchType != null and searchType != ''">
+				AND		CODE_SCHEDULE_ID = #{searchType} 
+		</if>
+		<if test="searchImportant != null and searchImportant == 1">
+			AND     SCHEDULE_IMP = 1
+		</if>
+	</sql>
+
+	<select id="selectScheduleListByDate" resultType="schedule" parameterType="schedule">
+		
+		SELECT		SCHEDULE_ID
+		            ,SCHEDULE_TITLE
+		            ,SCHEDULE_CONTENT
+		            ,SCHEDULE_CREATE_DT
+		            ,SCHEDULE_START_DT
+		            ,SCHEDULE_END_DT
+		            ,SCHEDULE_IMP
+		            ,SCHEDULE_ST
+		            ,SCHEDULE_WRITER_ID
+		            ,SCHEDULE_LOCATION 
+		            ,CODE_SCHEDULE_ID
+		            ,DEPT_ID
+		FROM		TB_SCHEDULE 
+		WHERE		1=1
+		AND			SCHEDULE_START_DT <![CDATA[ >= ]]> TO_DATE(#{scheduleStartDt},'yyyy-MM-dd HH24:mi') 
+		AND			SCHEDULE_START_DT <![CDATA[ < ]]> TO_DATE(#{scheduleEndDt},'yyyy-MM-dd HH24:mi')+1
+		AND			SCHEDULE_ST IN (1,2)
+		AND(
+		                   (SCHEDULE_WRITER_ID = #{scheduleWriterId}
+		                   AND      CODE_SCHEDULE_ID IN ('S01','S02','S03','S04'))
+		           OR      (CODE_SCHEDULE_ID = 'S02'
+		           			)
+		           OR      (CODE_SCHEDULE_ID = 'S03' 
+		                   AND DEPT_ID = (SELECT	DEPT_ID
+								 FROM	TB_EMP
+								 WHERE	EMP_ID = #{scheduleWriterId})
+		                   ) 
+		           OR      (CODE_SCHEDULE_ID = 'S04'
+		                    AND dept_id = (SELECT	TEAM_ID
+								  FROM		TB_EMP
+								  WHERE		EMP_ID = #{scheduleWriterId})
+		           			)
+ 		)
+	    <include refid="search" />       
+		ORDER BY SCHEDULE_START_DT
+	</select>
+
+	<select id="selectScheduleById" resultType="schedule" parameterType="int">
+		SELECT
+			     SCHEDULE_ID               
+			    ,SCHEDULE_TITLE           
+			    ,SCHEDULE_CONTENT         
+			    ,SCHEDULE_CREATE_DT       
+			    ,SCHEDULE_START_DT        
+			    ,SCHEDULE_END_DT          
+			    ,SCHEDULE_IMP             
+			    ,SCHEDULE_ST              
+			    ,SCHEDULE_WRITER_ID       
+			    ,SCHEDULE_LOCATION        
+			    ,CODE_SCHEDULE_ID        
+				,DEPT_ID
+		FROM 	TB_SCHEDULE
+		WHERE 	SCHEDULE_ID = #{scheduleId}
+		AND		SCHEDULE_ST IN (1,2)
+	</select>
+	
+	
+	<insert id="insertSchedule" parameterType="schedule" >
+		<selectKey resultType="int" keyProperty="scheduleId" order="BEFORE">
+			SELECT SCHEDULE_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO TB_SCHEDULE (
+				  SCHEDULE_ID
+				, SCHEDULE_TITLE
+				, SCHEDULE_CONTENT
+				, SCHEDULE_CREATE_DT
+				, SCHEDULE_START_DT
+				, SCHEDULE_END_DT
+				, SCHEDULE_IMP
+				, SCHEDULE_ST
+				, SCHEDULE_WRITER_ID
+				, SCHEDULE_LOCATION
+				, CODE_SCHEDULE_ID
+				<if test="codeScheduleId == 'S03' and deptId != null and deptId != ''">
+				, DEPT_ID
+				</if>
+				<if test="codeScheduleId == 'S04' and teamId != null and teamId != ''">
+				, DEPT_ID
+				</if>
+		)
+		VALUES (
+				#{scheduleId}
+				, #{scheduleTitle}
+				, #{scheduleContent}
+				, SYSDATE
+				, to_date(#{scheduleStartDt},'yyyy-MM-dd HH24:mi')
+				, to_date(#{scheduleEndDt},'yyyy-MM-dd HH24:mi')
+				, #{scheduleImp}
+				, 1
+				, #{scheduleWriterId}
+				, #{scheduleLocation}
+				, #{codeScheduleId}
+				<if test="codeScheduleId == 'S03' and deptId != null and deptId != ''">
+				, #{deptId}
+				</if>
+				<if test="codeScheduleId == 'S04' and teamId != null and teamId != ''">
+				, #{teamId}
+				</if>
+		)
+	</insert>
+	
+	<update id="updateSchedule" parameterType="schedule">
+		UPDATE  TB_SCHEDULE
+		<set>
+		        <if test='scheduleTitle != null and !"".equals(scheduleTitle)'>
+			     SCHEDULE_TITLE = #{scheduleTitle}
+		        </if>
+		        <if test='scheduleContent != null and !"".equals(scheduleContent)'>
+		        ,SCHEDULE_CONTENT = #{scheduleContent}
+		        </if>
+		        ,SCHEDULE_START_DT = to_date(#{scheduleStartDt},'yyyy-MM-dd HH24:mi')
+		        ,SCHEDULE_END_DT = to_date(#{scheduleEndDt},'yyyy-MM-dd HH24:mi')
+		        <if test='scheduleImp != null and !"".equals(scheduleImp)'>
+		        ,SCHEDULE_IMP = #{scheduleImp}
+		        </if>
+		        <if test='scheduleSt != 0'>
+		        ,SCHEDULE_ST = #{scheduleSt}
+		        </if>
+		        <if test='scheduleLocation != null and !"".equals(scheduleLocation)'>
+		        ,SCHEDULE_LOCATION = #{scheduleLocation}
+		        </if>
+		</set>
+		WHERE   SCHEDULE_ID = #{scheduleId}
+		AND		SCHEDULE_WRITER_ID = #{scheduleWriterId}
+	</update>
+	
+	<update id="deleteSchedule" parameterType="schedule">
+		UPDATE tb_schedule
+	    SET
+		        SCHEDULE_ST = 0
+		WHERE
+		    	SCHEDULE_ID =  #{scheduleId} 
+		AND		SCHEDULE_WRITER_ID = #{scheduleWriterId}
+	</update>
+	
+</mapper>
+
+

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.treeview.dao.TreeViewDAO">
+
+<select id="selectSearchOrganization" resultType="org">
+	select dept_id 			
+	 	   ,dept_name 		
+	       ,dept_sup_id 		
+	       ,dept_leader_id   
+	       ,level 
+	
+	from tb_dept
+	start with dept_sup_id is null
+	connect by prior dept_id = dept_sup_id
+	order by dept_id
+</select>
+
+<select id="selectSearchEmp" resultType="org">
+		select a.emp_id 			deptId,
+			   a.emp_name 			deptName,
+			   a.dept_id 			deptSupId,
+			   b.code_name	        position,
+               c.attend_st_name     empState
+		from tb_emp a
+        left outer join tb_attend_st c
+        on c.attend_st_id=a.attend_st_id
+        , tb_code b
+		where b.code_group_id = 'O'
+	      and a.code_official_id = b.code_id
+		order by b.code_id
+</select>
+
+<select id="selectSearchForm" resultType="form">
+	select FORM_ID 			
+	 	   ,FORM_NAME 		
+	       ,FORM_SUP_ID 		  
+	       ,level 
+	
+	from TB_APPROVAL_FORM
+	start with FORM_SUP_ID is null
+	connect by prior FORM_ID = FORM_SUP_ID
+	order by FORM_ID
+</select>
+
+
+
+
+
+
+
+
+
+
+<!-- <select id="selectSearchOrgChart" resultType="orgChartParse"> -->
+<!-- 	select a.dept_id  		id, -->
+<!-- 		   a.dept_name 		name, -->
+<!-- 		   a.dept_sup_id 	parent, -->
+<!-- 		   b.emp_name	    title -->
+	
+<!--     from tb_dept a, tb_emp b -->
+<!--     where a.dept_leader_id = b.emp_id(+) -->
+<!-- </select> -->
+
+
+</mapper>

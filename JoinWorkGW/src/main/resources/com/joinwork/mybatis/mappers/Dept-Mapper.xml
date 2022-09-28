@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.common.dao.DeptDAO">
+
+	<sql id="search">
+		<choose>
+			<when test="searchKeyword != null and searchKeyword != ''">
+		        <choose>
+		            <when test='searchCondition == "td"'>
+						AND	UPPER(A.DEPT_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+					</when>
+		            <when test='searchCondition == "t"'>
+						AND	(A.DEPT_TEAM_YN = 'Y'
+							AND	UPPER(A.DEPT_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+						)
+					</when>
+		            <when test='searchCondition == "d"'>
+						AND	(A.DEPT_TEAM_YN = 'N'
+							AND	UPPER(A.DEPT_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+						)
+					</when>
+				</choose>
+			</when>
+			<when test="searchKeyword == null or searchKeyword == ''">
+				<choose>
+					<when test='searchCondition == "t"'>
+						AND	A.DEPT_TEAM_YN = 'Y'
+					</when>
+		            <when test='searchCondition == "d"'>
+						AND	A.DEPT_TEAM_YN = 'N'
+					</when>
+				</choose>
+			</when>
+		</choose>
+	</sql>
+
+	<select id="selectAllDeptName" resultType="dept" >
+		SELECT
+			     A.dept_id
+			    ,A.dept_sup_id
+			    ,A.dept_name
+                ,NVL(B.emp_name, '없음') as leader_name
+			    ,A.dept_create_dt
+			    ,A.dept_update_dt
+			    ,A.dept_st
+			    ,NVL(A.dept_hp, '없음') as dept_hp
+			    ,NVL(A.dept_leader_id, '없음') as dept_leader_id 
+			    ,DECODE(A.dept_team_yn,'Y','팀','부서') as deptTeamYn
+		FROM
+		    	 tb_dept A
+                 , tb_emp B
+	    WHERE    dept_st = '1'
+        AND      A.dept_leader_id =  B.emp_id(+)
+	    ORDER BY dept_id
+	</select>
+	
+	<select id="selectDeptListByTeamYn" resultType="dept">
+		SELECT
+			    dept_id
+			   ,dept_sup_id
+			   ,dept_name
+			   ,dept_create_dt
+			   ,dept_update_dt
+			   ,dept_st
+			   ,dept_hp
+			   ,dept_leader_id
+			   ,dept_team_yn
+		FROM
+		    	tb_dept
+		WHERE   dept_team_yn = #{deptTeamYn}
+		AND     dept_st = 1
+		<if test='empId != null and !"".equals(empId) and "N".equals(deptTeamYn)'>
+		AND     dept_id IN (SELECT dept_id as deptId1
+		                      FROM	 tb_emp
+		                      WHERE	 emp_id = #{empId})
+		</if>
+		<if test='empId != null and !"".equals(empId) and "Y".equals(deptTeamYn)'>
+		AND     dept_id IN (SELECT team_id as deptId1
+		                      FROM	 tb_emp
+		                      WHERE	 emp_id = #{empId})
+		</if>
+		ORDER BY dept_id
+	</select>
+	
+	<select id="selectDeptPagingList" parameterType="dept" resultType="dept">
+		SELECT
+		        DEPT_ID
+		        ,DEPT_SUP_ID
+		        ,DEPT_NAME
+		        ,DEPT_CREATE_DT
+		        ,DEPT_UPDATE_DT
+		        ,DEPT_ST
+		        ,DEPT_HP
+		        ,DEPT_LEADER_ID
+		        ,B3.deptTeamYn
+                ,NVL(B3.team_leader_name,'없음') as deptLeaderName
+		FROM    (
+		        SELECT
+		                B2.*
+		        FROM    (
+		                SELECT
+		                        ROWNUM as SEQ
+		                        ,B1.*
+                                ,(SELECT 
+                                            B.emp_name
+                                    FROM 	tb_dept A
+                                            ,tb_emp B
+                                    WHERE B.EMP_ID = A.dept_leader_id
+                                    AND   A.dept_leader_id = B1.dept_leader_id
+                                    AND   A.dept_id = B1.dept_id) as team_leader_name
+		                FROM    (        
+		                        SELECT  
+		                                ROW_NUMBER() OVER(ORDER BY A.dept_id)
+		                                ,A.dept_id
+		                                ,A.dept_sup_id
+		                                ,A.dept_name
+		                                ,TO_CHAR(A.dept_create_dt, 'yyyy-MM-dd') AS dept_create_dt
+		                                ,TO_CHAR(A.dept_update_dt, 'yyyy-MM-dd') AS dept_update_dt
+		                                ,A.dept_st
+		                                ,NVL(A.dept_hp, '없음') as dept_hp
+		                                ,NVL(A.dept_leader_id, '없음') as dept_leader_id
+		                                ,DECODE(A.dept_team_yn,'Y','팀','부서') as deptTeamYn
+		                        FROM
+		                                 tb_dept A
+		                        WHERE    dept_st = '1'
+		                        <include refid="search" />
+		                        ORDER BY dept_id
+		                        ) B1
+		                ) B2
+		        WHERE   <![CDATA[ SEQ >= #{firstIndex} ]]>
+		        ) B3
+		WHERE   <![CDATA[ ROWNUM <= #{recordCountPerPage} ]]>  
+	</select>
+	
+	<select id="selectDeptCount" resultType="int" parameterType="dept">
+		SELECT	count(*)
+		FROM	tb_dept A
+		WHERE	A.dept_st = 1
+        <include refid="search" />
+	</select>
+	
+	<select id="seletDeptEmpCount" parameterType="dept" resultType="int">
+		SELECT  count(emp_id)
+		FROM    tb_emp
+		WHERE   dept_id = #{deptId}
+		OR      team_id = #{deptId}
+	</select>
+	
+	<select id="selectDeptByDeptId" parameterType="dept" resultType="dept">
+		SELECT   B1.*
+                ,NVL((SELECT 
+                            B.emp_name
+                    FROM 	tb_dept A
+                            ,tb_emp B
+                    WHERE B.EMP_ID = A.dept_leader_id
+                    AND   A.dept_leader_id = B1.dept_leader_id
+                    AND   A.dept_id = B1.dept_id  ),'없음') as dept_leader_name
+       FROM(
+            SELECT
+                    A.dept_id
+                   ,A.dept_sup_id
+                   ,(SELECT	B.dept_name
+                     FROM	tb_dept B
+                     WHERE	B.dept_id = A.dept_sup_id) as dept_sup_name
+                   ,A.dept_name
+                   ,A.dept_create_dt
+                   ,A.dept_update_dt
+                   ,DECODE(A.dept_st,'1','활성','비활성') as dept_st
+                   ,NVL(A.dept_hp, '없음') as dept_hp
+                   ,NVL(A.dept_leader_id, '없음') as dept_leader_id 
+                   ,DECODE(A.dept_team_yn,'Y','팀','부서') as deptTeamYn
+            FROM
+                    tb_dept A
+            where   dept_id = #{deptId}
+            ) B1
+	</select>
+	
+	<select id="selectEmpNameByLeaderId" parameterType="str" resultType="str">
+		SELECT 
+		        B.emp_name
+		FROM 	tb_dept A
+		    	,tb_emp B
+		WHERE B.EMP_ID = A.dept_leader_id
+		AND   A.dept_leader_id = #{deptLeaderId}
+	</select>
+	
+	<select id="dupleCheckDeptName" parameterType="str" resultType="int">
+		SELECT
+		   		count(dept_name)
+		FROM
+		    	tb_dept
+		where     
+		    	dept_name = #{deptName}
+	</select>
+	
+	<update id="insertDept" parameterType="dept">
+		<selectKey resultType="str" keyProperty="deptId" order="BEFORE">
+			 SELECT 'd' || TO_CHAR(DEPT_ID_SEQ.NEXTVAL) FROM DUAL
+		</selectKey>
+		INSERT INTO tb_dept (
+		    dept_id
+		   ,dept_name
+		   ,dept_create_dt
+		   <if test='deptSupId != null and !"".equals(deptSupId)'>
+		   ,dept_sup_id
+		   </if>
+		   <if test='deptHp != null and !"".equals(deptHp)'>
+		   ,dept_hp
+		   </if>
+		   <if test='deptLeaderId != null and !"".equals(deptLeaderId)'>
+		   ,dept_leader_id
+		   </if>
+		   <if test='deptTeamYn != null and !"".equals(deptTeamYn)'>
+		   ,dept_team_yn
+		   </if>
+		) VALUES (
+		    #{deptId}
+		   ,#{deptName}
+		   ,SYSDATE
+		   <if test='deptSupId != null and !"".equals(deptSupId)'>
+		   ,#{deptSupId}
+		   </if>
+		   <if test='deptHp != null and !"".equals(deptHp)'>
+		   ,#{deptHp} 
+		   </if>
+		   <if test='deptLeaderId != null and !"".equals(deptLeaderId)'>
+		   ,#{deptLeaderId}
+		   </if>
+		   <if test='deptTeamYn != null and !"".equals(deptTeamYn)'>
+		   ,#{deptTeamYn} 
+		   </if>
+		)
+   
+	</update>
+	
+	<update id="updateDept" parameterType="dept">
+		UPDATE	tb_dept
+	    SET
+		        dept_name = #{deptName}
+		        ,dept_update_dt = SYSDATE
+		        ,dept_st = #{deptSt}
+		        ,dept_hp = #{deptHp}
+		        ,dept_sup_id = #{deptSupId}
+		        ,dept_leader_id = #{deptLeaderId}
+		WHERE
+		    	dept_id =#{deptId}
+	</update>
+	
+	<update id="deleteDept" parameterType="dept">
+		UPDATE	tb_dept
+	    SET		dept_st = 0
+		WHERE	dept_id = #{deptId}
+	</update>
+	
+</mapper>

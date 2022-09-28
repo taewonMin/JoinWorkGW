@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.doc.dao.DocAttachDAO">
+
+
+
+      
+<select id="selectattach">
+SELECT
+    attach_id
+   ,attach_path
+   ,attach_name
+   ,attach_type
+   ,attach_create_dt
+   ,doc_id
+   ,emp_attacher_id
+FROM
+    tb_doc_attach
+WHERE
+    doc_id = #{docId};
+</select>
+      
+
+
+ 
+<delete id="deleteAttach">
+DELETE FROM tb_doc_attach
+WHERE
+doc_id = #{docId}
+
+</delete>
+
+ 
+ 
+<update id="insertAttach">
+ INSERT INTO tb_approval_history (
+     attach_id
+   ,attach_path
+   ,attach_name 
+   ,attach_type
+   ,attach_create_dt
+   ,doc_id
+   ,emp_attacher_id
+) VALUES (
+	  #{attachId}
+   ,#{attachPath}
+   ,#{attachName} 
+   ,#{attachType}
+   ,#{attachCreateDt}
+   ,#{docId}
+   ,#{empAttacherId}
+)
+
+</update>
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</mapper>

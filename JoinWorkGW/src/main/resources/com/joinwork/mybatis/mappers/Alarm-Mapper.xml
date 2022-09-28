@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.common.dao.AlarmDAO">
+
+<insert id="insertAlarm">
+INSERT INTO tb_alarm (
+    alarm_id
+   ,alarm_start_dt
+   ,alarm_st
+   ,emp_reader_id
+   ,alarm_title
+   ,alarm_content
+   ,alarm_url
+   ,alarm_category
+) VALUES (
+    alarm_id_seq.nextval
+   ,sysdate
+   ,0
+   ,#{empReaderId}
+   ,#{alarmTitle}
+   ,#{alarmContent}
+   ,#{alarmUrl}
+   ,#{alarmCategory}
+)
+</insert>
+
+<update id="updateAlarm" parameterType="alarm">
+UPDATE tb_alarm
+    SET
+         alarm_read_dt = sysdate
+        ,alarm_st = 1
+WHERE emp_reader_id = #{empReaderId}
+AND alarm_id=#{alarmId}
+</update>
+
+<update id="updateAlarmManage" parameterType="alarmManage">
+UPDATE tb_alarm_manage
+    SET
+        alarm_duty = #{alarmDuty}
+	   ,alarm_approval = #{alarmApproval}
+	   ,alarm_reservation = #{alarmReservation}
+	   ,alarm_board = #{alarmBoard}
+	   ,alarm_schedule = #{alarmSchedule}
+	   ,alarm_attend = #{alarmAttend}
+WHERE
+    emp_id = #{empId}
+</update>
+
+<delete id="deleteAlarm" parameterType="alarm">
+DELETE FROM tb_alarm
+WHERE emp_reader_id = #{empReaderId}
+	<if test="cri != null and cri != ''">
+		AND alarm_st = 1
+	</if>
+	<if test="alarmId != null and alarmId != ''">
+		AND alarm_id = #{alarmId}
+	</if>
+</delete>
+
+<select id="selectAlarmList" parameterType="emp" resultType="alarm">
+SELECT A.*
+FROM (
+		SELECT
+		    alarm_id
+		   ,alarm_start_dt
+		   ,alarm_read_dt
+		   ,alarm_st
+		   ,emp_reader_id
+		   ,alarm_title
+		   ,alarm_content
+		   ,alarm_url
+		   ,alarm_category
+		FROM
+		    tb_alarm
+		WHERE
+			emp_reader_id=#{empId}
+		    ORDER BY alarm_start_dt DESC
+    ) A
+WHERE ROWNUM <![CDATA[ <= ]]> 4
+</select>
+
+<select id="selectAllAlarmList" parameterType="emp" resultType="alarm">
+SELECT
+    alarm_id
+   ,alarm_start_dt
+   ,alarm_read_dt
+   ,alarm_st
+   ,emp_reader_id
+   ,alarm_title
+   ,alarm_content
+   ,alarm_url
+   ,alarm_category
+FROM
+    tb_alarm
+WHERE
+	emp_reader_id=#{empId}
+    ORDER BY alarm_start_dt DESC
+</select>
+	
+<select id="selectNewAlarmCount" parameterType="emp" resultType="int">
+SELECT
+    COUNT(*)
+FROM
+    tb_alarm
+WHERE 
+	emp_reader_id=#{empId}
+AND 
+	alarm_st=0
+</select>
+
+<select id="selectAlarmManage" parameterType="emp" resultType="alarmManage">
+	SELECT
+	    emp_id
+	   ,alarm_duty
+	   ,alarm_approval
+	   ,alarm_reservation
+	   ,alarm_board
+	   ,alarm_schedule
+	   ,alarm_attend
+	FROM
+	    tb_alarm_manage
+	WHERE emp_id = #{empId}
+</select>
+
+</mapper>
+
+

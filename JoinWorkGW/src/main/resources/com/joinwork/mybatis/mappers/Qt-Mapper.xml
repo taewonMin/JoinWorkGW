@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.board.qt.dao.QtDAO">
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "ntm"'>
+				AND	(A.QT_BOARD_ID LIKE '%' || #{searchKeyword} || '%'
+					OR A.QT_BOARD_TITLE LIKE '%' || #{searchKeyword} || '%'
+					OR B.EMP_NAME LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "n"'>
+				AND	A.QT_BOARD_ID LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	A.QT_BOARD_TITLE LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "m"'>
+				AND	B.EMP_NAME '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+	<if test="searchDt != null and searchDt != ''">
+		AND TO_CHAR(A.QT_BOARD_END_DT,'yyyyMMdd') = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'),'yyyyMMdd')
+	</if>
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "Y"'>
+				AND QT_BOARD_ST_YN = 'Y'
+			</when>
+			<when test='searchState == "N"'>
+				AND QT_BOARD_ST_YN = 'N'
+			</when>
+		</choose>
+	</if>
+</sql>
+
+
+<select id="selectQtList" parameterType="qt" resultType="qt">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+					SELECT  A.QT_BOARD_ID
+					       ,A.QT_BOARD_TITLE
+					       ,A.QT_BOARD_READCNT
+					       ,A.QT_BOARD_CREATE_DT
+					       ,A.QT_BOARD_UPDATE_DT
+					       ,A.EMP_WRITER_ID
+					       ,A.QT_BOARD_UPDATER_ID
+					       ,A.QT_BOARD_END_DT
+					       ,A.QT_BOARD_START_DT
+					       ,A.QT_BOARD_ST_YN
+					       ,B.EMP_NAME
+					       ,C.CODE_NAME officialName
+					  FROM TB_QT_BOARD A
+					       ,TB_EMP B
+					       ,TB_CODE C
+					 WHERE A.EMP_WRITER_ID = B.EMP_ID
+					   AND B.CODE_OFFICIAL_ID = C.CODE_ID
+					   <include refid="search" />
+					 ORDER BY QT_BOARD_CREATE_DT DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectQtListCnt" parameterType="qt" resultType="int">
+SELECT COUNT(A.QT_BOARD_ID)
+  FROM TB_QT_BOARD A
+       ,TB_EMP B
+       ,TB_CODE C
+ WHERE A.EMP_WRITER_ID = B.EMP_ID
+   AND B.CODE_OFFICIAL_ID = C.CODE_ID
+   <include refid="search" />
+</select>
+
+<insert id="insertQtBoard" parameterType="qt">
+  <selectKey keyProperty="qtBoardId" resultType="int" order="BEFORE">
+    select QT_BOARD_ID_SEQ.nextval FROM DUAL
+  </selectKey>
+INSERT INTO TB_QT_BOARD (
+            QT_BOARD_ID
+           ,QT_BOARD_TITLE
+           ,QT_BOARD_CREATE_DT
+           ,EMP_WRITER_ID
+           ,QT_BOARD_END_DT
+           ,QT_BOARD_START_DT
+           ,QT_BOARD_ST_YN
+) VALUES (
+			#{qtBoardId}
+			,#{qtBoardTitle}
+			,SYSDATE
+			,#{empWriterId}
+			,#{qtBoardEndDt}
+			,#{qtBoardStartDt}
+			,'Y'
+)
+
+</insert>
+<insert id="insertQtItem" parameterType="map">
+  <selectKey keyProperty="itemId" resultType="int" order="BEFORE">
+    select QT_ITEM_ID_SEQ.nextval FROM DUAL
+  </selectKey>
+INSERT INTO TB_QT_ITEM (
+    ITEM_CONTENT
+   ,QT_BOARD_ID
+   ,ITEM_ID
+   ,ITEM_MULTI_YN
+) VALUES (
+    #{itemContent}
+   ,#{qtBoardId}
+   ,#{itemId}
+   ,#{itemMultiYn}
+)
+
+</insert>
+
+<insert id="insertSelector" parameterType="map">
+  <selectKey keyProperty="selectorId" resultType="int" order="BEFORE">
+    select QT_SELECTOR_ID_SEQ.nextval FROM DUAL
+  </selectKey>
+INSERT INTO TB_QT_SELECTOR (
+    SELECTOR_ID
+   ,QT_BOARD_ID
+   ,ITEM_ID
+   ,SELECTOR_NAME
+) VALUES (
+    #{selectorId}
+   ,#{qtBoardId}
+   ,#{itemId}
+   ,#{selectorName}
+)
+
+</insert>
+
+<select id="selectQtById" parameterType="qt" resultType="qt">
+SELECT  A.QT_BOARD_ID
+       ,A.QT_BOARD_TITLE
+       ,A.QT_BOARD_READCNT
+       ,A.QT_BOARD_CREATE_DT
+       ,A.QT_BOARD_UPDATE_DT
+       ,A.EMP_WRITER_ID
+       ,A.QT_BOARD_UPDATER_ID
+       ,A.QT_BOARD_END_DT
+       ,A.QT_BOARD_START_DT
+       ,A.QT_BOARD_ST_YN
+       ,B.EMP_NAME
+       ,C.CODE_NAME officialName
+  FROM TB_QT_BOARD A
+       ,TB_EMP B
+       ,TB_CODE C
+ WHERE A.EMP_WRITER_ID = B.EMP_ID
+   AND B.CODE_OFFICIAL_ID = C.CODE_ID
+   AND A.QT_BOARD_ID = #{qtBoardId}
+ ORDER BY QT_BOARD_CREATE_DT DESC
+ 
+
+</select>
+
+<select id="selectItemById" parameterType="qt" resultType="item">
+SELECT
+    ITEM_CONTENT
+   ,QT_BOARD_ID
+   ,ITEM_ID
+   ,ITEM_MULTI_YN
+FROM
+    TB_QT_ITEM
+WHERE QT_BOARD_ID = #{qtBoardId}
+
+</select>
+
+<select id="selectSelectorById" parameterType="qt" resultType="item">
+SELECT
+    SELECTOR_ID
+   ,QT_BOARD_ID
+   ,ITEM_ID
+   ,SELECTOR_NAME
+FROM
+    TB_QT_SELECTOR
+WHERE QT_BOARD_ID = #{qtBoardId}
+
+</select>
+
+<select id="checkDuplicated" parameterType="qt" resultType="int">
+SELECT COUNT(EMP_ID)
+  FROM TB_QT_RESULT
+ WHERE QT_BOARD_ID = #{qtBoardId}
+   AND EMP_ID = #{empWriterId}
+
+</select>
+
+<select id="selectedCnt" parameterType="item" resultType="int">
+SELECT COUNT(EMP_ID)      
+  FROM TB_QT_RESULT
+ WHERE SELECTOR_ID = #{selectorId}
+   AND QT_BOARD_ID = #{qtBoardId}
+</select>
+
+<select id="selectItemCnt" parameterType="item" resultType="int">
+SELECT COUNT(A.SELECTOR_ID)
+  FROM TB_QT_SELECTOR A
+       ,TB_QT_RESULT B
+ WHERE A.SELECTOR_ID = B.SELECTOR_ID(+)
+   AND A.ITEM_ID = #{itemId}
+   AND B.QT_BOARD_ID = #{qtBoardId}
+
+</select>
+
+<select id="selectParticipantCnt" parameterType="qt" resultType="int">
+SELECT COUNT(DISTINCT(EMP_ID))
+  FROM TB_QT_RESULT
+ WHERE QT_BOARD_ID = #{qtBoardId}
+</select>
+
+
+
+
+
+<insert id="insertQtResult" parameterType="map">
+INSERT INTO TB_QT_RESULT (
+    EMP_ID
+   ,SELECTOR_ID
+   ,QT_BOARD_ID
+) VALUES (
+   #{empId}
+   ,#{selectorId}
+   ,#{qtBoardId}
+)
+
+</insert>
+
+<update id="increaseQtReadCnt" parameterType="qt">
+	UPDATE TB_QT_BOARD
+    SET
+        QT_BOARD_READCNT = QT_BOARD_READCNT+1
+	WHERE
+	    QT_BOARD_ID = #{qtBoardId}
+
+</update>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<update id="invertQtStY" parameterType="qt">
+	UPDATE TB_QT_BOARD
+    SET
+        QT_BOARD_ST_YN = 'Y'
+	WHERE
+	    QT_BOARD_ID = #{qtBoardId}
+
+</update>
+
+<update id="invertQtStN" parameterType="qt">
+	UPDATE TB_QT_BOARD
+    SET
+        QT_BOARD_ST_YN = 'N'
+	WHERE
+	    QT_BOARD_ID = #{qtBoardId}
+
+</update>
+
+<update id="updateQtStNScheduler">
+UPDATE TB_QT_BOARD
+   SET QT_BOARD_ST_YN = 'N'
+ WHERE 1=1
+   AND TO_CHAR(QT_BOARD_END_DT,'yyyyMMdd') <![CDATA[ < ]]> TO_CHAR(sysdate,'yyyyMMdd')
+   AND QT_BOARD_ST_YN = 'Y'
+</update>
+
+
+
+</mapper>

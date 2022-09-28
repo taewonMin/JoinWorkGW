@@ -1,0 +1,939 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.approval.dao.ApprovalDAO">
+
+<sql id="search">
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "ftd"'>
+				AND	(A.APPROVAL_TITLE LIKE '%' || #{searchKeyword} || '%'
+					OR FORM_NAME LIKE '%' || #{searchKeyword} || '%'
+					OR B.DOC_ID LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "f"'>
+				AND	C.FORM_NAME LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "t"'>
+				AND	A.APPROVAL_TITLE LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "d"'>
+				AND	B.DOC_ID LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+	<if test="searchDt != null and searchDt != ''">
+		AND TO_CHAR(A.APPROVAL_RECOMMAND_DT) = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'))
+	</if>
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "1"'>
+				AND A.APPROVAL_ST = 1
+			</when>
+			<when test='searchState == "2"'>
+				AND A.APPROVAL_ST = 2
+			</when>
+			<when test='searchState == "3"'>
+				AND A.APPROVAL_ST = 3
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<select id="selectSaveFormsById" parameterType="approval" resultType="form">
+SELECT  T.FORM_ID 	formId,
+        T.FORM_NAME formName,
+        C.FORM_NAME formSupName               
+  FROM (SELECT B.FORM_ID, 
+               B.FORM_NAME,
+               B.FORM_SUP_ID
+          FROM TB_APPROVAL_SAVE A, TB_APPROVAL_FORM B
+         WHERE A.FORM_ID = B.FORM_ID 
+           AND A.EMP_ID = #{empDrafterId})T,
+       TB_APPROVAL_FORM C
+ WHERE T.FORM_SUP_ID = C.FORM_ID
+   AND ROWNUM &lt;= 4
+</select>
+
+
+<select id="selectWaitDocsById" parameterType="approval" resultType="approval">
+		SELECT  F.DOC_ID,
+		        A.APPROVAL_TITLE,
+		        A.APPROVAL_RECOMMAND_DT, 	
+		        A.EMP_DRAFTER_ID, 	
+		        C.FORM_NAME,
+		        COUNT(D.ATTACH_ID) attachCnt,
+		        G.EMP_NAME empDrafterName,
+		        H.CODE_NAME empDrafterOfficial,
+		        A.APPROVAL_EMERGENCY_YN
+		 FROM  TB_APPROVAL A, 
+		 	   TB_APPROVAL_DOC B,                 
+		       TB_APPROVAL_FORM C, 
+		       TB_APPROVAL_ATTACH D,
+		       TB_APPROVAL_HISTORY F, 
+		       TB_EMP G, 
+		       TB_CODE H
+		WHERE B.DOC_ID = F.DOC_ID(+)
+		  AND B.DOC_ID = A.DOC_ID(+)
+		  AND F.DOC_ID = B.DOC_ID
+		  AND C.FORM_ID = B.FORM_ID
+		  AND A.DOC_ID = D.DOC_ID(+)
+		  AND A.EMP_DRAFTER_ID = G.EMP_ID
+		  AND G.CODE_OFFICIAL_ID = H.CODE_ID
+		  AND F.EMP_ID = #{empDrafterId}
+		  AND F.HISTORY_ST = 0
+		  AND F.HISTORY_TURN = 'Y'
+		  <include refid="search" />
+		GROUP BY A.APPROVAL_TITLE,
+		        A.APPROVAL_RECOMMAND_DT,
+		        A.EMP_DRAFTER_ID,
+		        F.DOC_ID,
+		        C.FORM_NAME,
+		        G.EMP_NAME,
+		        H.CODE_NAME,
+		        A.APPROVAL_EMERGENCY_YN
+		ORDER BY A.APPROVAL_EMERGENCY_YN 
+			     ,A.APPROVAL_RECOMMAND_DT DESC
+</select>
+
+
+<select id="selectWaitDocByDocId" parameterType="str" resultType="approval">
+SELECT
+    	APPROVAL_TITLE,
+	    APPROVAL_CONTENT,
+	    APPROVAL_RECOMMAND_DT,
+	    APPROVAL_TERMINATION_DT,
+	    APPROVAL_ST,
+	    APPROVAL_EMERGENCY_YN,
+	    APPROVAL_SECURITY,
+	    APPROVAL_END_DT,
+	    APPROVAL_AGENCY_YN,
+	    APPROVAL_PREDECESS_YN,
+	    EMP_DRAFTER_ID,
+	    DOC_ID,
+	    APPROVAL_CANCEL_REASON
+	    
+FROM
+    	TB_APPROVAL
+    	
+WHERE   DOC_ID = #{docId}
+</select>
+
+<select id="selectAllAgencyChecking" parameterType="approvalHistory" resultType="approvalHistory">
+SELECT 'Y' YN
+  FROM TB_AGENCY 
+ WHERE EMP_GRANTER_ID = (SELECT EMP_ID     
+                           FROM  TB_APPROVAL_HISTORY
+                          WHERE DOC_ID = #{docId}
+                            AND HISTORY_STEP = 3
+                            AND EXISTS (SELECT 1
+                                          FROM TB_APPROVAL_HISTORY
+                                         WHERE DOC_ID = #{docId}
+                                           AND HISTORY_STEP = 2
+                                           AND EMP_ID = #{empId}))
+   AND EMP_AGENCY_ID = #{empId}
+   AND AGENCY_ST = 1
+</select>
+
+
+<select id="selectAttachsByDocId" parameterType="str" resultType="approvalAttach">
+SELECT
+        ATTACH_ID
+       ,ATTACH_PATH
+       ,ATTACH_NAME
+       ,ATTACH_TYPE
+       ,ATTACH_CREATE_DT
+       ,ATTACH_END_DT
+       ,EMP_ATTACHER_ID
+       ,DOC_ID
+       ,ATTACH_VOLUME
+FROM
+        TB_APPROVAL_ATTACH
+WHERE   DOC_ID = #{docId}
+</select>
+
+
+
+<select id="selectDocsById" parameterType="approval" resultType="str">
+SELECT DOC_ID
+  FROM TB_APPROVAL_HISTORY
+ WHERE EMP_ID = #{empDrafterId}
+</select>
+
+<select id="selectFormById" parameterType="str" resultType="form">
+SELECT
+	    FORM_ID,
+	    FORM_SUP_ID,
+	    FORM_NAME,
+	    FORM_CONTENT,
+	    FORM_PERIOD
+FROM
+    	TB_APPROVAL_FORM
+WHERE FORM_ID =#{formId}
+</select>
+
+
+<select id="selectCompleteDocsById" parameterType="approval" resultType="approval">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+					SELECT DISTINCT  E.DOC_ID,
+					        A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.EMP_DRAFTER_ID,
+					        A.APPROVAL_ST,
+					        C.FORM_NAME,
+					        COUNT(D.ATTACH_ID) attachCnt
+					 FROM   TB_APPROVAL A,
+						    TB_APPROVAL_DOC B, 
+						    TB_APPROVAL_FORM C,      
+					        TB_APPROVAL_ATTACH D,
+					        TB_APPROVAL_HISTORY E
+					WHERE A.DOC_ID = E.DOC_ID(+)
+					  AND A.DOC_ID = B.DOC_ID(+)
+					  AND C.FORM_ID = B.FORM_ID
+					  AND A.DOC_ID = D.DOC_ID(+)
+					  AND (E.EMP_ID = #{empDrafterId}
+					   OR  E.HISTORY_SUP_ID = #{empDrafterId})
+					  AND E.HISTORY_ST = 1
+					  AND E.HISTORY_TURN = 'N'
+					  AND A.APPROVAL_ST IN (2,3)
+					  <include refid="search" />
+					GROUP BY A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        E.DOC_ID,
+					        C.FORM_NAME
+					ORDER BY A.APPROVAL_RECOMMAND_DT DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectAllDocsById" parameterType="approval" resultType="approval">
+select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+					 SELECT A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        A.DOC_ID,
+					       (SELECT FORM_NAME 
+			                  FROM TB_APPROVAL_FORM
+			                 WHERE FORM_ID = B.FORM_ID ) FORM_NAME, 
+					       (SELECT COUNT(*) 
+					          FROM TB_APPROVAL_ATTACH 
+					         WHERE DOC_ID = A.DOC_ID ) attachCnt
+					   FROM TB_APPROVAL A, 
+					        TB_APPROVAL_DOC B  
+					  WHERE A.DOC_ID = B.DOC_ID
+					     <include refid="search" />
+					    AND (A.DOC_ID IN(SELECT DOC_ID                             
+					                      FROM TB_RECEPTION                      
+					                     WHERE EMP_ID = #{empDrafterId})                                                          
+					     OR A.DOC_ID IN(SELECT DOC_ID   
+					                      FROM TB_REFER 
+					                     WHERE EMP_ID = #{empDrafterId})
+					     OR A.DOC_ID IN(SELECT DISTINCT E.DOC_ID               
+					                      FROM TB_APPROVAL A , TB_APPROVAL_HISTORY E
+					                     WHERE E.DOC_ID(+) = A.DOC_ID
+					                       AND E.EMP_ID = #{empDrafterId}
+					                       AND E.HISTORY_ST = 1
+					                       AND E.HISTORY_TURN = 'N'
+					                       AND A.APPROVAL_ST IN (2,3))
+					     OR A.DOC_ID IN(SELECT DISTINCT F.DOC_ID       
+					                      FROM TB_APPROVAL A, TB_APPROVAL_HISTORY F
+					                     WHERE F.DOC_ID(+) = A.DOC_ID
+					                       AND F.EMP_ID = #{empDrafterId}))
+						 ORDER BY A.APPROVAL_RECOMMAND_DT DESC	
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+
+
+
+<select id="selectCompleteDocByDocId" parameterType="str" resultType="approval">
+SELECT
+	    APPROVAL_TITLE,
+	    APPROVAL_CONTENT,
+	    APPROVAL_RECOMMAND_DT,
+	    APPROVAL_TERMINATION_DT,
+	    APPROVAL_ST,
+	    APPROVAL_EMERGENCY_YN,
+	    APPROVAL_SECURITY,
+	    APPROVAL_END_DT,
+	    APPROVAL_AGENCY_YN,
+	    APPROVAL_PREDECESS_YN,
+	    EMP_DRAFTER_ID,
+	    DOC_ID,
+	    APPROVAL_CANCEL_REASON
+	    
+ FROM  TB_APPROVAL
+WHERE  DOC_ID = #{docId}
+</select>
+
+<select id="selectDraftDocsById" parameterType="approval" resultType="approval">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+						SELECT  A.APPROVAL_TITLE,
+                                A.APPROVAL_RECOMMAND_DT,
+                                A.APPROVAL_ST,
+                                A.EMP_DRAFTER_ID,
+                                A.DOC_ID,
+                                C.FORM_NAME,
+                                COUNT(D.ATTACH_ID) attachCnt
+                        FROM TB_APPROVAL A,TB_APPROVAL_DOC B, TB_APPROVAL_FORM C, TB_APPROVAL_ATTACH D
+                        WHERE A.DOC_ID = B.DOC_ID
+                          AND B.FORM_ID = C.FORM_ID
+                          AND A.DOC_ID = D.DOC_ID(+)
+                          AND A.EMP_DRAFTER_ID = #{empDrafterId}
+                          AND NOT A.APPROVAL_ST IN(4,5)
+                          <include refid="search" />
+                        GROUP BY A.APPROVAL_TITLE,
+                                A.APPROVAL_RECOMMAND_DT,
+                                A.APPROVAL_ST,
+                                A.EMP_DRAFTER_ID,
+                                A.DOC_ID,
+                                C.FORM_NAME
+                        ORDER BY 2 DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+	
+	
+</select>
+
+
+<select id="selectTempDocsById" parameterType="approval" resultType="approval">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+					SELECT  A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        A.DOC_ID,
+					        C.FORM_NAME,
+					        COUNT(D.ATTACH_ID) attachCnt
+					FROM TB_APPROVAL A,
+					     TB_APPROVAL_DOC B,
+					     TB_APPROVAL_FORM C,
+					     TB_APPROVAL_ATTACH D
+					WHERE A.DOC_ID = B.DOC_ID
+					  AND B.FORM_ID = C.FORM_ID
+					  AND A.DOC_ID = D.DOC_ID(+)
+					  AND A.EMP_DRAFTER_ID = #{empDrafterId}
+					  AND A.APPROVAL_ST = 4
+					  <include refid="search" />
+			  GROUP BY A.APPROVAL_TITLE,
+                       A.APPROVAL_RECOMMAND_DT,
+                       A.APPROVAL_ST,
+                       A.EMP_DRAFTER_ID,
+                       A.DOC_ID,
+                       C.FORM_NAME
+			  ORDER BY A.APPROVAL_RECOMMAND_DT DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectReceptionDocsById" parameterType="approval" resultType="approval">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+					SELECT  A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        A.DOC_ID,
+					        C.FORM_NAME,
+					        COUNT(D.ATTACH_ID) attachCnt
+					FROM TB_APPROVAL A,
+					     TB_APPROVAL_DOC B, 
+					     TB_APPROVAL_FORM C, 
+					     TB_APPROVAL_ATTACH D,
+					     TB_RECEPTION E
+					WHERE A.DOC_ID = B.DOC_ID
+					  AND B.FORM_ID = C.FORM_ID
+					  AND A.DOC_ID = D.DOC_ID(+)
+					  AND A.DOC_ID = E.DOC_ID(+)
+					  AND E.EMP_ID = #{empDrafterId}
+					  AND NOT A.APPROVAL_ST IN(1,4,5)
+					  <include refid="search" />
+					GROUP BY A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        A.DOC_ID,
+					        C.FORM_NAME
+					ORDER BY A.APPROVAL_RECOMMAND_DT DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectReferDocsById" parameterType="approval" resultType="approval">
+	select D3.*
+	  from(
+			select D2.*
+			from(
+				  select rownum as seq, D1.*
+				  from(
+					SELECT  A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        A.DOC_ID,
+					        C.FORM_NAME,
+					        COUNT(D.ATTACH_ID) attachCnt
+					FROM TB_APPROVAL A,
+					     TB_APPROVAL_DOC B, 
+					     TB_APPROVAL_FORM C,
+					     TB_APPROVAL_ATTACH D,
+					     TB_REFER E
+					WHERE A.DOC_ID = B.DOC_ID
+					  AND B.FORM_ID = C.FORM_ID
+					  AND A.DOC_ID = D.DOC_ID(+)
+					  AND A.DOC_ID = E.DOC_ID(+)
+					  AND E.EMP_ID = #{empDrafterId}
+					  AND NOT A.APPROVAL_ST IN(1,4,5)
+					  <include refid="search" />
+					GROUP BY A.APPROVAL_TITLE,
+					        A.APPROVAL_RECOMMAND_DT,
+					        A.APPROVAL_ST,
+					        A.EMP_DRAFTER_ID,
+					        A.DOC_ID,
+					        C.FORM_NAME
+					ORDER BY A.APPROVAL_RECOMMAND_DT DESC
+					) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectApprovalById" parameterType="str" resultType="approval">
+SELECT
+	    APPROVAL_TITLE,
+	    APPROVAL_CONTENT,
+	    APPROVAL_RECOMMAND_DT,
+	    APPROVAL_TERMINATION_DT,
+	    APPROVAL_ST,
+	    APPROVAL_EMERGENCY_YN,
+	    APPROVAL_SECURITY,
+	    APPROVAL_END_DT,
+	    APPROVAL_AGENCY_YN,
+	    APPROVAL_PREDECESS_YN,
+	    EMP_DRAFTER_ID,
+	    DOC_ID,
+	    APPROVAL_CANCEL_REASON
+FROM
+    	TB_APPROVAL
+WHERE 
+		DOC_ID = #{docId}
+</select>
+
+<select id="selectMaxDocId" resultType="str">
+SELECT MAX(DOC_ID)
+  FROM TB_APPROVAL_DOC
+</select>
+
+<select id="selectStepByEmpIdAndDocId" resultType="approvalHistory" parameterType="approvalHistory">
+SELECT HISTORY_STEP
+  FROM TB_APPROVAL_HISTORY
+ WHERE EMP_ID = #{empId}
+   AND DOC_ID = #{docId}
+</select>
+
+<select id="selectHistoryTurnYByDocId" resultType="approval" parameterType="approval">
+SELECT
+   	EMP_ID empDrafterId  
+FROM
+    TB_APPROVAL_HISTORY
+WHERE HISTORY_TURN = 'Y'
+  AND DOC_ID = #{docId}
+</select>
+
+<select id="selectApprovalSaveCnt" resultType="int" parameterType="approvalSave">
+SELECT COUNT(EMP_ID)
+  FROM TB_APPROVAL_SAVE
+ WHERE EMP_ID = #{empId}
+</select>
+
+<select id="selectApprovalLineSeqNext" resultType="int">
+	SELECT APPROVAL_LINE_SEQ.NEXTVAL AS lineId 
+	  FROM DUAL
+</select>
+
+<select id="selectApprovalLineByEmpId" resultType="approvalLine" parameterType="str" >
+	SELECT LINE_ID, 
+	       LINE_NAME
+      FROM TB_APPROVAL_LINE
+     WHERE EMP_ID = #{empId}
+</select>
+
+<select id="selectApprovalLineRegistByLineId" resultType="approvalLine" parameterType="int" >
+SELECT  A.EMP_ID
+       ,A.LINE_TYPE
+       ,B.EMP_NAME
+       ,C.DEPT_NAME
+       ,D.ATTEND_ST_NAME
+       ,E.CODE_NAME officialName
+  FROM TB_APPROVAL_LINE_REGIST A,
+       TB_EMP B,
+       TB_DEPT C,
+       TB_ATTEND_ST D,
+       TB_CODE E
+ WHERE B.EMP_ID = A.EMP_ID(+)
+   AND C.DEPT_ID = B.DEPT_ID(+)
+   AND B.ATTEND_ST_ID = D.ATTEND_ST_ID(+)
+   AND B.CODE_OFFICIAL_ID = E.CODE_ID
+   AND A.LINE_ID = #{lineId}
+ ORDER BY A.LINE_TYPE
+</select>
+
+<select id="selectDraftDocsCnt" resultType="int" parameterType="approval" >
+	SELECT COUNT(A.EMP_DRAFTER_ID)
+      FROM TB_APPROVAL A,
+           TB_APPROVAL_DOC B,
+           TB_APPROVAL_FORM C
+     WHERE A.DOC_ID = B.DOC_ID
+       AND B.FORM_ID = C.FORM_ID 
+       AND A.EMP_DRAFTER_ID = #{empDrafterId}
+       AND NOT A.APPROVAL_ST IN(4,5)
+       <include refid="search" />
+</select>
+
+<select id="selectCompleteDocsCnt" resultType="int" parameterType="approval" >
+	SELECT COUNT(A.DOC_ID)
+	 FROM   TB_APPROVAL A 
+			,TB_APPROVAL_DOC B  
+			,TB_APPROVAL_FORM C      
+	        ,TB_APPROVAL_ATTACH D
+	        ,TB_APPROVAL_HISTORY E
+	WHERE E.DOC_ID(+) = A.DOC_ID
+	  AND A.DOC_ID = B.DOC_ID(+)
+	  AND C.FORM_ID = B.FORM_ID
+	  AND D.DOC_ID(+) = A.DOC_ID
+	  AND E.EMP_ID = #{empDrafterId}
+	  AND E.HISTORY_ST = 1
+	  AND E.HISTORY_TURN = 'N'
+	  AND A.APPROVAL_ST IN (2,3)
+       <include refid="search" />
+</select>
+
+<select id="selectTempDocsCnt" resultType="int" parameterType="approval" >
+	SELECT COUNT(A.DOC_ID) 
+	FROM TB_APPROVAL A,
+	     TB_APPROVAL_DOC B,
+	     TB_APPROVAL_FORM C,
+	     TB_APPROVAL_ATTACH D
+	WHERE A.DOC_ID = B.DOC_ID
+	  AND B.FORM_ID = C.FORM_ID
+	  AND A.DOC_ID = D.DOC_ID(+)
+	  AND A.EMP_DRAFTER_ID = #{empDrafterId}
+	  AND A.APPROVAL_ST = 4
+      <include refid="search" />
+</select>
+
+<select id="selectReceptionDocsCnt" resultType="int" parameterType="approval" >
+	SELECT COUNT(A.DOC_ID) 
+	FROM TB_APPROVAL A,
+	     TB_APPROVAL_DOC B, 
+	     TB_APPROVAL_FORM C,
+	     TB_APPROVAL_ATTACH D,
+	     TB_RECEPTION E
+	WHERE A.DOC_ID = B.DOC_ID
+	  AND B.FORM_ID = C.FORM_ID
+	  AND A.DOC_ID = D.DOC_ID(+)
+	  AND A.DOC_ID = E.DOC_ID(+)
+	  AND E.EMP_ID = #{empDrafterId}
+	  AND NOT A.APPROVAL_ST IN(1,4,5)
+	  <include refid="search" />
+</select>
+
+<select id="selectReferDocsCnt" resultType="int" parameterType="approval" >
+	SELECT COUNT(A.DOC_ID) 
+	FROM TB_APPROVAL A,
+	     TB_APPROVAL_DOC B, 
+	     TB_APPROVAL_FORM C, 
+	     TB_APPROVAL_ATTACH D,
+	     TB_REFER E
+	WHERE A.DOC_ID = B.DOC_ID
+	  AND B.FORM_ID = C.FORM_ID
+	  AND A.DOC_ID = D.DOC_ID(+)
+	  AND A.DOC_ID = E.DOC_ID(+)
+	  AND E.EMP_ID = #{empDrafterId}
+	  AND NOT A.APPROVAL_ST IN(1,4,5)
+	  <include refid="search" />
+</select>
+
+<select id="selectWaitDocsCnt" resultType="int" parameterType="approval" >
+	SELECT COUNT(DISTINCT F.DOC_ID)
+	 FROM  TB_APPROVAL A,
+	       TB_APPROVAL_DOC B,                 
+	       TB_APPROVAL_FORM C, 
+	       TB_APPROVAL_ATTACH D,
+	       TB_APPROVAL_HISTORY F,
+	       TB_EMP G, 
+	       TB_CODE H
+	WHERE B.DOC_ID = F.DOC_ID(+)
+	  AND B.DOC_ID = A.DOC_ID(+)
+	  AND F.DOC_ID = B.DOC_ID
+	  AND C.FORM_ID = B.FORM_ID
+	  AND A.DOC_ID = D.DOC_ID(+)
+	  AND A.EMP_DRAFTER_ID = G.EMP_ID
+	  AND G.CODE_OFFICIAL_ID = H.CODE_ID
+	  AND F.EMP_ID = #{empDrafterId}
+	  AND F.HISTORY_ST = 0
+	  AND F.HISTORY_TURN = 'Y'
+	  <include refid="search" />
+</select>
+
+<select id="selectAllDocsCnt" resultType="int" parameterType="approval" >
+ SELECT COUNT(A.APPROVAL_TITLE)
+   FROM  TB_APPROVAL A
+   		,TB_APPROVAL_DOC B
+		,TB_APPROVAL_FORM C
+  WHERE A.DOC_ID = B.DOC_ID
+    AND C.FORM_ID = B.FORM_ID
+    AND (A.DOC_ID IN(SELECT DOC_ID                             
+                      FROM TB_RECEPTION                      
+                     WHERE EMP_ID = #{empDrafterId})                                                          
+     OR A.DOC_ID IN(SELECT DOC_ID   
+                      FROM TB_REFER 
+                     WHERE EMP_ID = #{empDrafterId})
+     OR A.DOC_ID IN(SELECT DISTINCT E.DOC_ID               
+                      FROM TB_APPROVAL A , TB_APPROVAL_HISTORY E
+                     WHERE E.DOC_ID(+) = A.DOC_ID
+                       AND E.EMP_ID = #{empDrafterId}
+                       AND E.HISTORY_ST = 1
+                       AND E.HISTORY_TURN = 'N'
+                       AND A.APPROVAL_ST IN (2,3))
+     OR A.DOC_ID IN(SELECT DISTINCT F.DOC_ID       
+                      FROM TB_APPROVAL A, TB_APPROVAL_HISTORY F
+                     WHERE F.DOC_ID(+) = A.DOC_ID
+                       AND F.EMP_ID = #{empDrafterId}))
+	  <include refid="search" />
+</select>
+
+<select id="selectAgencyByGranterId" resultType="agency" parameterType="agency" >
+SELECT A.EMP_AGENCY_ID
+       ,A.AGENCY_GROUP_NAME
+       ,B.EMP_NAME
+       ,C.DEPT_NAME
+       ,D.ATTEND_ST_NAME
+       ,E.CODE_NAME officialName
+  FROM TB_AGENCY A
+       ,TB_EMP B
+       ,TB_DEPT C
+       ,TB_ATTEND_ST D
+       ,TB_CODE E
+ WHERE B.EMP_ID = A.EMP_AGENCY_ID(+)
+   AND C.DEPT_ID = B.DEPT_ID(+)
+   AND B.ATTEND_ST_ID = D.ATTEND_ST_ID(+)
+   AND B.CODE_OFFICIAL_ID = E.CODE_ID
+   AND A.EMP_GRANTER_ID = #{empGranterId}
+   AND A.AGENCY_ST = 1
+</select>
+
+<select id="selectDeaAgencyByGranterId" resultType="agency" parameterType="agency" >
+SELECT A.EMP_AGENCY_ID
+       ,A.AGENCY_GROUP_NAME
+       ,B.EMP_NAME
+       ,C.DEPT_NAME
+       ,D.ATTEND_ST_NAME
+       ,E.CODE_NAME officialName
+  FROM TB_AGENCY A
+       ,TB_EMP B
+       ,TB_DEPT C
+       ,TB_ATTEND_ST D
+       ,TB_CODE E
+ WHERE B.EMP_ID = A.EMP_AGENCY_ID(+)
+   AND C.DEPT_ID = B.DEPT_ID(+)
+   AND B.ATTEND_ST_ID = D.ATTEND_ST_ID(+)
+   AND B.CODE_OFFICIAL_ID = E.CODE_ID
+   AND A.EMP_GRANTER_ID = #{empGranterId}
+   AND A.AGENCY_GROUP_NAME = '대결자'
+   AND A.AGENCY_ST = 1
+</select>
+
+<insert id="insertApprovalSaveForm" parameterType="approvalSave">
+INSERT INTO TB_APPROVAL_SAVE (
+		    FORM_ID
+		   ,EMP_ID
+) VALUES (
+    		#{formId}
+    		,#{empId}
+)
+</insert>
+
+<insert id="insertApprovalDoc" parameterType="map">
+INSERT INTO TB_APPROVAL_DOC (
+            FORM_ID,
+            EMP_DRAFTER_ID,
+            DOC_ID) 
+     VALUES (
+		    #{formId},
+		    #{empId},
+		    APPROVAL_DOC_SEQ.NEXTVAL
+			)
+</insert>
+
+
+<insert id="insertApproval" parameterType="approval">
+INSERT INTO TB_APPROVAL (
+		    APPROVAL_CONTENT,
+		    APPROVAL_RECOMMAND_DT,
+		    APPROVAL_ST,
+		    EMP_DRAFTER_ID,
+		    DOC_ID
+) VALUES (
+    #{approvalContent},
+    sysdate,
+    5,
+    #{empDrafterId},
+    #{docId}
+)
+
+</insert>
+
+<insert id="insertApprovalHistory" parameterType="map">
+INSERT INTO TB_APPROVAL_HISTORY (
+		    HISTORY_ST,
+		    EMP_ID,
+		    HISTORY_ALLOW_DT,
+		    DOC_ID,
+		    HISTORY_TURN,
+		    HISTORY_STEP
+		    <if test="supId != null">
+		    ,HISTORY_SUP_ID
+		    </if>
+) VALUES (
+	#{historySt},    
+    #{empId},
+    sysdate,
+    #{docId},
+    #{historyTurn},
+    #{historyStep}
+    <if test="supId != null">
+    ,#{supId}
+    </if>
+)
+</insert>
+
+<insert id="insertApprovalLine" parameterType="approvalLine">
+INSERT INTO TB_APPROVAL_LINE (
+		    LINE_ID
+		   ,LINE_NAME
+		   ,EMP_ID
+)    VALUES (
+   			#{lineId}
+   			,#{lineName}
+   			,#{empId}
+)
+
+</insert>
+
+<insert id="insertApprovalLineRegist" parameterType="approvalLine">
+INSERT INTO TB_APPROVAL_LINE_REGIST (
+		    LINE_ID
+		   ,EMP_ID
+		   ,LINE_TYPE
+)    VALUES (
+   			#{lineId}
+   			,#{empId}
+   			,#{lineType}
+)
+</insert>
+
+<insert id="insertApprovalAttach" parameterType="approvalAttach">
+INSERT INTO TB_APPROVAL_ATTACH (
+		    ATTACH_ID
+		   ,ATTACH_PATH
+		   ,ATTACH_NAME
+		   ,ATTACH_TYPE
+		   ,ATTACH_CREATE_DT
+		   ,EMP_ATTACHER_ID
+		   ,DOC_ID
+		   ,ATTACH_VOLUME
+) VALUES (
+		    APPROVAL_ATTACH_SEQ.NEXTVAL
+		   ,#{attachPath}
+		   ,#{attachName}
+		   ,#{attachType}
+		   ,SYSDATE
+		   ,#{empAttacherId}
+		   ,#{docId}
+		   ,#{attachVolume}
+)
+</insert>
+
+<insert id="insertReception" parameterType="approvalHistory">
+INSERT INTO TB_RECEPTION (
+		    DOC_ID
+		   ,EMP_ID
+) VALUES (
+		    #{docId}
+		   ,#{empId}
+)
+</insert>
+
+<insert id="insertRefer" parameterType="approvalHistory">
+INSERT INTO TB_REFER (
+		    DOC_ID
+		   ,EMP_ID
+) VALUES (
+		    #{docId}
+		   ,#{empId}
+)
+</insert>
+
+<update id="insertAgency" parameterType="agency">
+INSERT INTO TB_AGENCY (
+            EMP_AGENCY_ID
+           ,EMP_GRANTER_ID
+           ,AGENCY_UPDATE_DT
+           ,AGENCY_ST
+           ,AGENCY_GROUP_NAME
+) VALUES (
+           #{empAgencyId}
+           ,#{empGranterId}  
+           ,sysdate  
+           ,#{agencySt}  
+           ,#{agencyGroupName}  
+)
+</update>
+
+<update id="updateAgency" parameterType="agency">
+UPDATE TB_AGENCY
+   SET AGENCY_UPDATE_DT = sysdate
+       ,AGENCY_ST = #{agencySt} 
+       ,AGENCY_GROUP_NAME = #{agencyGroupName} 
+ WHERE EMP_AGENCY_ID = #{empAgencyId}
+   AND EMP_GRANTER_ID = #{empGranterId}
+</update>
+
+
+
+
+
+<update id="updateApproval" parameterType="approval">
+UPDATE TB_APPROVAL
+   SET APPROVAL_TITLE = #{approvalTitle}
+       ,APPROVAL_CONTENT = #{approvalContent}
+       ,APPROVAL_ST = #{approvalSt}
+       <if test="approvalSt == 1">
+       ,APPROVAL_RECOMMAND_DT = sysdate
+       </if>
+       <if test="approvalEmergencyYn != null">
+       ,APPROVAL_EMERGENCY_YN = #{approvalEmergencyYn}
+       </if>
+       
+       
+ WHERE DOC_ID = #{docId}
+</update>
+
+<update id="updateApprovalReturn" parameterType="approval">
+UPDATE TB_APPROVAL
+   SET APPROVAL_CANCEL_REASON = #{approvalCancelReason}
+   	   ,APPROVAL_CONTENT = #{approvalContent}
+   	   ,APPROVAL_ST = #{approvalSt}
+ WHERE DOC_ID = #{docId}
+</update>
+
+<update id="updateApprovalHistory" parameterType="approvalHistory">
+UPDATE TB_APPROVAL_HISTORY
+   SET HISTORY_ST = #{historySt}
+       ,HISTORY_ALLOW_DT = sysdate
+       ,HISTORY_TURN = #{historyTurn}
+ WHERE DOC_ID = #{docId}
+   AND EMP_ID = #{empId}
+
+</update>
+
+<update id="updateApprovalHistoryByDocIdAndStep" parameterType="approvalHistory">
+UPDATE TB_APPROVAL_HISTORY
+   SET HISTORY_TURN = #{historyTurn}
+ WHERE DOC_ID = #{docId}
+   AND HISTORY_STEP = #{historyStep}
+
+</update>
+
+<update id="updateAgencySt" parameterType="agency">
+UPDATE TB_AGENCY
+   SET AGENCY_ST = 0
+ WHERE EMP_GRANTER_ID = #{empGranterId}
+</update>
+
+<update id="updateApprovalHistoryAllAgency" parameterType="approvalHistory">
+UPDATE TB_APPROVAL_HISTORY
+   SET HISTORY_ST = 1
+       ,HISTORY_ALLOW_DT = SYSDATE
+       ,HISTORY_TURN = 'N'
+WHERE DOC_ID = #{docId}
+</update>
+
+<update id="updateApprovalTemp" parameterType="approval">
+UPDATE TB_APPROVAL
+   SET APPROVAL_ST = 4
+       ,APPROVAL_CONTENT = #{approvalContent}
+       ,APPROVAL_TITLE = #{approvalTitle}
+ WHERE DOC_ID = #{docId}
+   AND EMP_DRAFTER_ID = #{empDrafterId}
+</update>
+
+
+
+
+<delete id="deleteSaveForm" parameterType="map">
+delete 
+  from tb_approval_save
+ where form_id = #{formId}
+   and emp_id = #{empId}
+
+</delete>
+
+
+
+
+
+
+
+
+
+
+
+
+
+</mapper>

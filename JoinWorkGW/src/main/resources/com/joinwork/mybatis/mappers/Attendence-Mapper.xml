@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.attend.dao.AttendenceDAO">
+
+<sql id="search">
+	<if test="searchDt != null and searchDt != ''">
+		AND TO_CHAR(A.HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'),'yyyyMMdd')
+	</if>
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "정상출근"'>
+				AND b.ATTEND_ST_NAME = '정상출근'
+			</when>
+			<when test='searchState == "지각"'>
+				AND b.ATTEND_ST_NAME = '지각'
+			</when>
+		</choose>
+	</if>
+</sql>	
+
+<sql id="deptSearch">
+<!-- 	<if test="searchDt != null and searchDt != ''"> -->
+<!-- 		AND TO_CHAR(A.HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(to_date(#{searchDt},'MM/DD/YYYY'),'yyyyMMdd') -->
+<!-- 	</if> -->
+	<if test="searchState != null and searchState != ''">
+		<choose>
+			<when test='searchState == "정상출근"'>
+				AND T1.ATTEND_ST_NAME = '정상출근'
+			</when>
+			<when test='searchState == "지각"'>
+				AND T1.ATTEND_ST_NAME = '지각'
+			</when>
+		</choose>
+	</if>
+	<if test="searchKeyword != null and searchKeyword != ''">
+        <choose>
+            <when test='searchCondition == "on"'>
+				AND	(A.EMP_NAME LIKE '%' || #{searchKeyword} || '%'
+					OR C.CODE_NAME LIKE '%' || #{searchKeyword} || '%'
+				)
+			</when>
+            <when test='searchCondition == "o"'>
+				AND	C.CODE_NAME LIKE '%' || #{searchKeyword} || '%'
+			</when>
+            <when test='searchCondition == "n"'>
+				AND	A.EMP_NAME LIKE '%' || #{searchKeyword} || '%'
+			</when>
+		</choose>
+	</if>
+	
+	
+	
+</sql>	
+
+
+
+<select id="selectAttendenceList"  resultType="attendence" parameterType="attendence">
+select D3.*
+  from(
+		select D2.*
+		from(
+			  select rownum as seq, D1.*
+			  from(
+				select a.HISTORY_ATTEND_TIME
+				      ,a.HISTORY_LEAVING_TIME
+				      ,a.HISTORY_ID
+				      ,a.EMP_ID
+				      ,b.ATTEND_ST_NAME
+				      ,a.ATTEND_ST_ID
+				      ,a.HISTORY_REASON
+				     ,(SELECT COUNT(HISTORY_ID)
+				         FROM TB_ATTEND_HISTORY a 
+				              ,TB_ATTEND_ST b   
+				        where b.ATTEND_ST_ID = a.ATTEND_ST_ID(+)
+				          and a.EMP_ID = #{empId}
+				          and a.HISTORY_ATTEND_TIME <![CDATA[ >= ]]> TO_DATE(#{dateDateMin}, 'YYYY-MM')
+				          and a.HISTORY_ATTEND_TIME <![CDATA[ < ]]>  TO_DATE(#{dateDateMax}, 'YYYY-MM')
+				          AND ATTEND_ST_NAME = '정상출근') nomalCnt
+				    ,(SELECT COUNT(HISTORY_ID)
+				         FROM TB_ATTEND_HISTORY a 
+				              ,TB_ATTEND_ST b   
+				        where b.ATTEND_ST_ID = a.ATTEND_ST_ID(+)
+				          and a.EMP_ID = #{empId}
+				          and a.HISTORY_ATTEND_TIME <![CDATA[ >= ]]> TO_DATE(#{dateDateMin}, 'YYYY-MM')
+				          and a.HISTORY_ATTEND_TIME <![CDATA[ < ]]> TO_DATE(#{dateDateMax}, 'YYYY-MM')
+				          AND ATTEND_ST_NAME = '지각') lateCnt
+				 from TB_ATTEND_HISTORY a 
+				      ,TB_ATTEND_ST b   
+				where b.ATTEND_ST_ID = a.ATTEND_ST_ID(+)
+				  and a.EMP_ID = #{empId}
+				  and a.HISTORY_ATTEND_TIME  <![CDATA[ >= ]]> TO_DATE(#{dateDateMin}, 'YYYY-MM')
+				  and a.HISTORY_ATTEND_TIME <![CDATA[ < ]]>  TO_DATE(#{dateDateMax}, 'YYYY-MM')
+				 <include refid="search" />                           
+				order by HISTORY_ID desc
+				) D1
+			) D2
+			where seq <![CDATA[ >= ]]> #{firstIndex}
+		) D3
+	where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+</select>
+
+<select id="selectAttendenceListCnt"  resultType="int" parameterType="attendence">
+select count(a.HISTORY_ATTEND_TIME)
+ from TB_ATTEND_HISTORY a 
+      ,TB_ATTEND_ST b   
+where b.ATTEND_ST_ID = a.ATTEND_ST_ID(+)
+  and a.EMP_ID = #{empId}
+  and a.HISTORY_ATTEND_TIME  <![CDATA[ >= ]]> TO_DATE(#{dateDateMin}, 'YYYY-MM')
+  and a.HISTORY_ATTEND_TIME <![CDATA[ < ]]>  TO_DATE(#{dateDateMax}, 'YYYY-MM')
+  <include refid="search" />
+order by HISTORY_ID desc
+
+</select>
+
+<select id="selectDeptAttendenceListCnt"  resultType="int" parameterType="attendence">
+select count(A.EMP_ID)
+  FROM TB_EMP A
+       ,TB_CODE C
+       ,(SELECT A.HISTORY_ATTEND_TIME
+                ,A.HISTORY_LEAVING_TIME
+                ,A.EMP_ID
+                ,B.ATTEND_ST_ID
+                ,A.HISTORY_REASON
+                ,B.ATTEND_ST_NAME 
+           FROM TB_ATTEND_HISTORY A
+                ,TB_ATTEND_ST B
+          WHERE B.ATTEND_ST_ID = A.ATTEND_ST_ID(+)
+            AND EMP_ID IN(SELECT EMP_ID
+                            FROM TB_EMP
+                           WHERE DEPT_ID = (SELECT DEPT_ID
+                                               FROM TB_EMP
+                                              WHERE EMP_ID = #{empId}))            
+            AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(#{sysDate},'yyyyMMdd'))T1
+ WHERE A.EMP_ID = T1.EMP_ID(+)
+   AND C.CODE_ID = A.CODE_OFFICIAL_ID
+   AND A.EMP_ID IN(SELECT EMP_ID
+                     FROM TB_EMP
+                    WHERE DEPT_ID = (SELECT DEPT_ID
+                                       FROM TB_EMP
+                                      WHERE EMP_ID = #{empId}))
+  <include refid="deptSearch" />
+</select>
+
+<select id="selectDeptAttendenceList" resultType="attendence" parameterType="attendence">
+select D3.*
+  from(
+		select D2.*
+		from(
+			  select rownum as seq, D1.*
+			  from(
+				SELECT A.EMP_ID
+				       ,A.EMP_NAME
+				       ,A.CODE_OFFICIAL_ID
+				       ,T1.HISTORY_ATTEND_TIME
+				       ,T1.HISTORY_LEAVING_TIME
+				       ,T1.ATTEND_ST_ID
+				       ,T1.HISTORY_REASON
+				       ,T1.ATTEND_ST_NAME
+				       ,C.CODE_NAME officialName
+				  FROM TB_EMP A
+				       ,TB_CODE C
+				       ,(SELECT A.HISTORY_ATTEND_TIME
+				                ,A.HISTORY_LEAVING_TIME
+				                ,A.EMP_ID
+				                ,B.ATTEND_ST_ID
+				                ,A.HISTORY_REASON
+				                ,B.ATTEND_ST_NAME 
+				           FROM TB_ATTEND_HISTORY A
+				                ,TB_ATTEND_ST B
+				          WHERE B.ATTEND_ST_ID = A.ATTEND_ST_ID(+)
+				            AND EMP_ID IN(SELECT EMP_ID
+				                            FROM TB_EMP
+				                           WHERE DEPT_ID = (SELECT DEPT_ID
+				                                               FROM TB_EMP
+				                                              WHERE EMP_ID = #{empId}))            
+				            AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(#{sysDate},'yyyyMMdd'))T1
+				 WHERE A.EMP_ID = T1.EMP_ID(+)
+				   AND C.CODE_ID = A.CODE_OFFICIAL_ID
+				   AND A.EMP_ID IN(SELECT EMP_ID
+				                     FROM TB_EMP
+				                    WHERE DEPT_ID = (SELECT DEPT_ID
+				                                       FROM TB_EMP
+				                                      WHERE EMP_ID = #{empId}))
+				   <include refid="deptSearch" />  
+				  ORDER BY A.CODE_OFFICIAL_ID DESC
+			) D1
+		) D2
+		where seq <![CDATA[ >= ]]> #{firstIndex}
+	) D3
+where rownum <![CDATA[ <= ]]> #{recordCountPerPage}
+
+</select>
+
+<select id="selectDeptAttendenceNoPagingList" resultType="attendence" parameterType="attendence">
+SELECT A.EMP_ID
+       ,A.EMP_NAME
+       ,A.EMP_HP
+       ,A.CODE_OFFICIAL_ID
+       ,T1.HISTORY_ATTEND_TIME
+       ,T1.HISTORY_LEAVING_TIME
+       ,T1.ATTEND_ST_ID
+       ,T1.HISTORY_REASON
+       ,T1.ATTEND_ST_NAME
+       ,C.CODE_NAME officialName
+  FROM TB_EMP A
+       ,TB_CODE C
+       ,(SELECT A.HISTORY_ATTEND_TIME
+                ,A.HISTORY_LEAVING_TIME
+                ,A.EMP_ID
+                ,B.ATTEND_ST_ID
+                ,A.HISTORY_REASON
+                ,B.ATTEND_ST_NAME 
+           FROM TB_ATTEND_HISTORY A
+                ,TB_ATTEND_ST B
+          WHERE B.ATTEND_ST_ID = A.ATTEND_ST_ID(+)
+            AND EMP_ID IN(SELECT EMP_ID
+                            FROM TB_EMP
+                           WHERE DEPT_ID = (SELECT DEPT_ID
+                                               FROM TB_EMP
+                                              WHERE EMP_ID = #{empId}))            
+            AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(#{sysDate},'yyyyMMdd'))T1
+ WHERE A.EMP_ID = T1.EMP_ID(+)
+   AND C.CODE_ID = A.CODE_OFFICIAL_ID
+   AND A.EMP_ID IN(SELECT EMP_ID
+                     FROM TB_EMP
+                    WHERE DEPT_ID = (SELECT DEPT_ID
+                                       FROM TB_EMP
+                                      WHERE EMP_ID = #{empId}))
+   <include refid="deptSearch" />  
+  ORDER BY A.CODE_OFFICIAL_ID DESC
+		
+</select>
+
+<select id="selectNomalCnt" parameterType="attendence" resultType="int">
+SELECT COUNT(DISTINCT(A.EMP_ID))
+  FROM TB_ATTEND_HISTORY A
+       ,TB_EMP B
+ WHERE B.EMP_ID = A.EMP_ID(+)
+   AND A.ATTEND_ST_ID = 1
+   AND B.DEPT_ID = (SELECT DEPT_ID
+                      FROM TB_EMP
+                     WHERE EMP_ID = #{empId})
+  
+   AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(#{sysDate},'yyyyMMdd')
+</select>
+
+<select id="selectLateCnt" parameterType="attendence" resultType="int">
+SELECT COUNT(DISTINCT(A.EMP_ID))
+  FROM TB_ATTEND_HISTORY A
+       ,TB_EMP B
+ WHERE B.EMP_ID = A.EMP_ID(+)
+   AND A.ATTEND_ST_ID = 2
+   AND B.DEPT_ID = (SELECT DEPT_ID
+                      FROM TB_EMP
+                     WHERE EMP_ID = #{empId})
+   AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(#{sysDate},'yyyyMMdd')
+</select>
+
+<select id="selectDeptTotCnt" parameterType="attendence" resultType="attendence">
+SELECT COUNT(DISTINCT(B.EMP_ID)) deptTotCnt
+      ,C.DEPT_NAME
+  FROM TB_ATTEND_HISTORY A
+       ,TB_EMP B
+       ,TB_DEPT C
+ WHERE B.EMP_ID = A.EMP_ID(+)
+   AND C.DEPT_ID = B.DEPT_ID(+)
+   AND B.DEPT_ID = (SELECT DEPT_ID
+                      FROM TB_EMP
+                     WHERE EMP_ID = #{empId})
+ GROUP BY C.DEPT_NAME
+</select>
+
+
+
+<update id="insertStartWork"  parameterType="map">
+INSERT INTO TB_ATTEND_HISTORY (HISTORY_ATTEND_TIME, HISTORY_ID,EMP_ID,ATTEND_ST_ID,HISTORY_REASON) 
+VALUES (to_date(#{date},'yy.mm.dd hh24:mi:ss'),HISTORY_ID_SEQ.NEXTVAL,#{empId},1,'none')
+
+	
+</update>
+<update id="insertStartWorkLate"  parameterType="map">
+INSERT INTO TB_ATTEND_HISTORY (HISTORY_ATTEND_TIME, HISTORY_ID,EMP_ID,ATTEND_ST_ID,HISTORY_REASON) 
+VALUES (to_date(#{date},'yy.mm.dd hh24:mi:ss'),HISTORY_ID_SEQ.NEXTVAL,#{empId},2,'none')
+	
+</update>
+
+<update id="insertEndWork"  parameterType="map">
+	UPDATE TB_ATTEND_HISTORY
+	SET 
+	    HISTORY_LEAVING_TIME=to_date(#{date},'yy.mm.dd hh24:mi:ss')
+	    
+	WHERE
+	    HISTORY_ID=#{historyId}
+</update>
+
+
+<select id="getResentWork" resultType="attendence" parameterType="str" >
+select * from TB_ATTEND_HISTORY
+ where EMP_ID=#{empId}
+   and ROWNUM = 1
+ order by HISTORY_ID desc
+</select>
+
+<select id="getHistoryAttendTime" parameterType="map" resultType="str">
+select to_char(history_attend_time, 'YYYY/MM/DD HH24:MI:SS')
+from tb_attend_history
+where emp_id = #{empId}
+and history_attend_time like to_char(sysdate,'yy/mm/dd') || '%'
+</select>
+
+<select id="getHistoryAttendEndTime" parameterType="map" resultType="str">
+select to_char(HISTORY_LEAVING_TIME, 'YYYY/MM/DD HH24:MI:SS')
+from tb_attend_history
+where emp_id = #{empId}
+and HISTORY_LEAVING_TIME like to_char(sysdate,'yy/mm/dd') || '%'
+</select>
+
+<select id="selectDeptAttendenceLsit" parameterType="str" resultType="attendenceCommand">
+select A.HISTORY_ATTEND_TIME
+      ,A.HISTORY_LEAVING_TIME
+      ,A.HISTORY_ID
+      ,A.EMP_ID
+      ,B.DEPT_ID
+      ,A.ATTEND_ST_ID
+      ,A.HISTORY_REASON 
+ from TB_ATTEND_HISTORY A inner join TB_EMP B on A.EMP_ID = B.EMP_ID
+ where B.DEPT_ID= #{deptId}
+</select>
+
+<select id="selectDeptMember" parameterType="str" resultType="attendence">
+ select EMP_ID
+       ,EMP_NAME
+ from TB_EMP
+where DEPT_ID = #{deptId}
+order by EMP_ID
+</select>
+
+<select id="getMembersAttendenceST" parameterType="map" resultType="str">
+ select ATTEND_ST_ID
+ from TB_ATTEND_HISTORY
+where EMP_ID = #{empId}
+ and  HISTORY_ATTEND_TIME BETWEEN TO_DATE(#{dateDateMin}, 'YYYY-MM')
+                              AND TO_DATE(#{dateDateMax}, 'YYYY-MM')
+order by HISTORY_ATTEND_TIME    
+</select>
+
+
+<select id="getAttendenceEmpDept" parameterType="attendence" resultType="str">
+select
+	 a.dept_id
+	 
+from
+	 tb_emp a join tb_dept b on a.DEPT_ID = b.DEPT_ID
+where 
+	 emp_id = #{empId}
+</select>
+
+
+
+<select id="getAttendenceEmpTeamDept" parameterType="attendence" resultType="str">
+select 
+	a.team_id 
+from 
+	tb_emp a join tb_dept b on a.team_id  = b.DEPT_ID
+where 
+	 emp_id =  #{empId}
+</select>
+
+<select id="getDeptName" parameterType="str" resultType="str">
+select 
+	b.dept_name
+from 
+	tb_emp a join tb_dept b on a.DEPT_ID = b.DEPT_ID
+where 
+	 emp_id =  #{empId}
+</select>
+
+<select id="getTeamDeptName" parameterType="str" resultType="str">
+select 
+	b.dept_name
+from 
+	tb_emp a join tb_dept b on a.team_id  = b.DEPT_ID
+where 
+	 emp_id =  #{empId}
+</select>
+
+<update id="updateReason" parameterType="attendence">
+UPDATE TB_ATTEND_HISTORY
+   SET HISTORY_REASON = #{historyReason}   
+ WHERE 1=1
+   AND EMP_ID = #{empId}
+   AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') = TO_CHAR(#{historyAttendTime},'yyyyMMdd')
+</update>
+
+<update id="updateLeavingTimeScheduler" >
+UPDATE TB_ATTEND_HISTORY
+   SET HISTORY_LEAVING_TIME = TO_TIMESTAMP(TO_CHAR(HISTORY_ATTEND_TIME,'yyyy-MM-dd')||' 22:00:00')
+ WHERE HISTORY_LEAVING_TIME IS NULL
+   AND TO_CHAR(HISTORY_ATTEND_TIME,'yyyyMMdd') != TO_CHAR(sysdate,'yyyyMMdd')
+</update>
+
+
+</mapper>

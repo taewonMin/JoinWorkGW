@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.addbook.dao.AddBookDAO">
+	
+	<sql id="search">
+		<if test="searchKeyword != null and searchKeyword != ''">
+	        <choose>
+	            <when test='searchCondition == "npod"'>
+					AND	(UPPER(A.MANAGE_DISPLAY_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+						OR UPPER(A.MANAGE_HP)				LIKE UPPER('%' || #{searchKeyword} || '%')
+						OR UPPER(A.MANAGE_OFFICIAL_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+						OR UPPER(A.MANAGE_DEPT_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+					)
+				</when>
+	            <when test='searchCondition == "n"'>
+					AND	UPPER(A.MANAGE_DISPLAY_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+	            <when test='searchCondition == "p"'>
+					AND	UPPER(A.MANAGE_HP)				LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+	            <when test='searchCondition == "o"'>
+					AND	UPPER(A.MANAGE_OFFICIAL_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+	            <when test='searchCondition == "d"'>
+					AND	UPPER(A.MANAGE_DEPT_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+			</choose>
+		</if>
+	</sql>
+	<sql id="companySearch">
+		<if test="searchKeyword != null and searchKeyword != ''">
+	        <choose>
+	            <when test='searchCondition == "npod"'>
+					AND	(UPPER(A.EMP_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+						OR UPPER(A.EMP_HP)		LIKE UPPER('%' || #{searchKeyword} || '%')
+						OR UPPER(C.CODE_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+						OR UPPER(B.DEPT_NAME)	LIKE UPPER('%' || #{searchKeyword} || '%')
+					)
+				</when>
+	            <when test='searchCondition == "n"'>
+					AND	UPPER(A.EMP_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+	            <when test='searchCondition == "p"'>
+					AND	UPPER(A.EMP_HP)			LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+	            <when test='searchCondition == "o"'>
+					AND	UPPER(C.CODE_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+	            <when test='searchCondition == "d"'>
+					AND	UPPER(B.DEPT_NAME)		LIKE UPPER('%' || #{searchKeyword} || '%')
+				</when>
+			</choose>
+		</if>
+	</sql>
+	
+	<update id="insertAddBookManage" parameterType="addBook">
+		<selectKey resultType="int" keyProperty="manageId" order="BEFORE">
+			SELECT MANAGE_ID_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+
+	
+		INSERT INTO TB_ADD_BOOK_MANAGE (
+						manage_id
+						<if test="addBookId != null and addBookId !=''">
+					   ,add_book_id
+						</if>
+					   ,manage_display_name
+						<if test="manageHp != null and manageHp !=''">
+					   ,manage_hp
+						</if>
+					   <if test="manageEmail != null and manageEmail != ''">
+					   ,manage_email
+						</if>
+					   <if test="manageRemark != null and manageRemark != ''">
+					   ,manage_remark
+					   </if>
+					   ,manage_official_name
+					   ,manage_dept_name
+					   <if test="managePicture != null and managePicture != ''">
+					   ,manage_picture
+					   </if>
+					   ,emp_writer_id
+		) VALUES (
+						#{manageId}
+						<if test="addBookId != null and addBookId !=''">
+					   ,#{addBookId}
+					   </if>
+					   ,#{manageDisplayName}
+						<if test="manageHp != null and manageHp !=''">
+					   ,#{manageHp}
+						</if>
+					   <if test="manageEmail != null and manageEmail != ''">
+					   ,#{manageEmail}
+					   </if>
+					   <if test="manageRemark != null and manageRemark != ''">
+					   ,#{manageRemark}
+					   </if>
+					   ,#{manageOfficialName}
+					   ,#{manageDeptName}
+					   <if test="managePicture != null and managePicture != '' ">
+					   ,#{managePicture, jdbcType=VARCHAR}
+					   </if>
+					   ,#{empWriterId}
+		)
+	</update>
+	
+	<insert id="insertAddBook" parameterType="addBook">
+		<selectKey resultType="int" keyProperty="addBookId" order="BEFORE">
+			SELECT ADD_BOOK_ID_PRIVATE_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+	
+		INSERT INTO TB_ADD_BOOK (
+				    add_book_id
+				   ,add_book_title
+				   ,emp_writer_id
+				   ,code_add_id
+		) VALUES (
+				    #{addBookId}
+				   ,#{addBookTitle}
+				   ,#{empWriterId}
+				   ,#{codeAddId}
+		)
+	</insert>
+	
+	<select id="selectCompanyPagingList" parameterType="addBook" resultType="addBook">
+		SELECT	
+		        emp_id    
+		        ,emp_name			as manageDisplayName
+		        ,NVL(emp_hp,'없음')	as manageHp       
+		        ,NVL(emp_email,'없음') as manageEmail
+		        ,D3.officialName	as manageOfficialName 
+		        ,dept_id     
+		        ,D3.deptName		as manageDeptName   
+		        ,emp_picture		as managePicture 
+		        ,'회사주소록'			as addBookTitle
+		FROM	( 
+		        SELECT	D2.*
+		        FROM    (	
+		                SELECT  ROWNUM as SEQ
+		                        ,D1.*
+		                FROM    (
+		                        SELECT		ROW_NUMBER() OVER(ORDER BY A.EMP_ID)
+			                                ,A.EMP_ID					
+			                                ,A.EMP_NAME	
+			                                ,A.EMP_HP			
+			                                ,A.EMP_EMAIL
+			                                ,C.CODE_NAME officialName
+			                                ,A.DEPT_ID								
+			                                ,B.DEPT_NAME deptName
+			                                ,A.EMP_PICTURE			
+			                    FROM		TB_EMP A, TB_DEPT B, TB_CODE C
+		                        WHERE		A.DEPT_ID = B.DEPT_ID
+		                        AND			A.CODE_OFFICIAL_ID = C.CODE_ID
+		                        AND			A.EMP_ST IN (1,4)
+		                        <if test='deptId != null and !"".equals(deptId)'>
+		                        AND         (A.dept_id = #{deptId}
+		                        			OR  A.team_id = #{deptId})
+		                        </if>
+		                        <include refid="companySearch" />
+		                        ORDER BY	A.EMP_ID DESC
+		                        ) D1
+		                ) D2
+                   <if test='firstIndex != 0'>
+	               WHERE <![CDATA[ SEQ >= #{firstIndex} ]]>
+	               </if>
+	           ) D3
+       	<if test='recordCountPerPage != 0'>
+		WHERE	<![CDATA[ ROWNUM <= #{recordCountPerPage} ]]>
+		</if>
+	</select>
+	
+	<select id="selectCompanyListTotalCount" parameterType="addBook" resultType="int">
+		SELECT		
+		        	COUNT(emp_id)
+		FROM		tb_emp 
+		WHERE		emp_st IN (1,4)
+		<if test='deptId != null and !"".equals(deptId)'>
+		AND         (dept_id = #{deptId}
+		OR 			 team_id = #{deptId})
+		</if>
+		<include refid="companySearch" />
+		ORDER BY	EMP_ID DESC
+	</select>
+	
+	<select id="selectEmpByEmpIdForAddBook" parameterType="addBook" resultType="com.joinwork.addbook.command.AddBookEmpCommand">
+		SELECT	
+			        A.emp_id      
+			        ,A.emp_name    
+			        ,NVL(A.emp_hp,'없음') as empHp
+			        ,NVL(A.emp_email,'없음') as empEmail   
+			        ,C.code_name as official_name
+			        ,A.dept_id     
+			        ,B.dept_name   
+			        ,A.emp_picture 
+			        ,(select '회사주소록' from dual) as addBookTitle
+		FROM		TB_EMP A, TB_DEPT B, TB_CODE C
+		WHERE		A.DEPT_ID = B.DEPT_ID
+		AND			A.CODE_OFFICIAL_ID = C.CODE_ID
+		AND			A.EMP_ST IN (1,4)
+        AND         A.EMP_ID = #{empId}
+		ORDER BY	A.EMP_ID DESC
+	
+	</select>
+	
+	<select id="selectPrivatePagingList" parameterType="addBook" resultType="addBook">
+		     SELECT
+				    manage_id
+				   ,add_book_id
+				   ,manage_display_name
+				   ,NVL(manage_hp,'없음') as manage_hp
+				   ,NVL(manage_email,'없음') as manage_email
+				   ,NVL(manage_remark,'없음') as manage_remark
+				   ,NVL(manage_official_name,'없음') as manage_official_name
+				   ,NVL(manage_dept_name,'없음') as manage_dept_name
+				   ,NVL(manage_picture,'없음') as manage_picture
+				   ,D3.TITLE as addBookTitle
+			
+			FROM(        
+			SELECT D2.*
+			FROM	(
+			        SELECT  ROWNUM as SEQ
+			                , D1.*
+			        FROM
+			             	(
+				             SELECT
+	                                     ROW_NUMBER() OVER (ORDER BY A.add_book_id)
+	                                    ,A.*
+	                                    ,NVL(B.add_book_title,'전체주소록') AS TITLE
+	                         FROM       TB_ADD_BOOK_MANAGE A, tb_add_book B
+	                         WHERE       1=1
+	                         AND        A.manage_st = 1
+	                         AND        A.add_book_id = B.add_book_id(+)
+	                         AND        A.EMP_WRITER_ID = #{empWriterId}
+							 <if test="addBookId != 0">
+							 AND        A.add_book_id = #{addBookId}
+							 </if>
+					         <include refid="search" />
+							 ORDER BY	A.manage_id 				
+		                    ) D1                                      
+	                )  D2
+	                <if test='firstIndex != 0'>
+	                WHERE <![CDATA[ SEQ >= #{firstIndex} ]]>
+	                </if>
+		            ) D3
+            <if test='recordCountPerPage != 0'>
+			WHERE	<![CDATA[ ROWNUM <= #{recordCountPerPage} ]]>
+			</if>
+	</select>
+	
+	<select id="selectPrivateListTotalCount" resultType="int">
+		select count(*)
+		from (
+		
+		                SELECT
+	                                 ROW_NUMBER() OVER (ORDER BY A.add_book_id)
+	                                ,A.*
+	                     FROM	 	tb_add_book_manage A
+	                     			,tb_add_book B
+	                     WHERE	 	1=1
+	                     AND		A.manage_st = 1
+	                     AND        A.add_book_id = B.add_book_id(+)
+	                     AND		A.emp_writer_id = #{empWriterId}
+	                     <if test="addBookId != 0">
+	                     AND        A.add_book_id = #{addBookId}
+	                     </if>							
+				         <include refid="search" />
+	                     ORDER BY	A.manage_id 
+		      ) D
+	</select>
+
+
+	<select id="selectAddBookManageByManageId" parameterType="addBook" resultType="addBook">
+		SELECT
+			    manage_id
+			   ,add_book_id
+			   <if test="addBookId != 0">
+			   ,C.bookTitle as add_book_title
+			   </if>
+			   ,manage_display_name
+				<choose>
+					<when test='flag == "modify"'>
+					   ,manage_hp
+					   ,manage_email
+					   ,manage_remark
+					   ,manage_official_name
+					   ,manage_dept_name
+					   ,manage_picture
+					</when>
+					<otherwise>
+					   ,NVL(manage_hp,'없음') as manage_hp
+					   ,NVL(manage_email,'없음') as manage_email
+					   ,NVL(manage_remark,'없음') as manage_remark
+					   ,NVL(manage_official_name,'없음') as manage_official_name
+					   ,NVL(manage_dept_name,'없음') as manage_dept_name
+					   ,NVL(manage_picture,'없음') as manage_picture
+				   	</otherwise>
+			   </choose>
+		FROM	(SELECT
+				            A.*
+				            <if test="addBookId != 0">
+				            ,B.add_book_title as bookTitle
+				            </if>
+		         FROM	 	TB_ADD_BOOK_MANAGE A
+				            <if test="addBookId != 0">
+		         			,TB_ADD_BOOK B
+				            </if>
+		         WHERE	 	1=1
+	            <if test="addBookId != 0">
+		         AND		A.add_book_id = B.add_book_id
+		         AND		A.add_book_id =  (
+	                                            SELECT  add_book_id
+	                                            FROM    tb_add_book_manage
+	                                            WHERE   manage_id = #{manageId}
+                                             )   
+		         </if>
+		         AND	 	A.manage_id = #{manageId}
+		         ) C
+	
+	</select>
+	
+	<select id="selectAddBookGroupList" resultType="addBook" parameterType="addBook">
+		SELECT  add_book_id
+			   ,add_book_title
+			   ,emp_writer_id
+			   ,code_add_id
+		FROM	tb_add_book
+		WHERE	1=1
+		AND		code_add_id = 'A02' 
+		<if test='empWriterId != null and !"".equals(empWriterId) '>
+		AND		emp_writer_id = #{empWriterId}
+		</if>
+		ORDER BY add_book_id
+	</select>
+	
+	<select id="selectAddBookCount" parameterType="addBook" resultType="int">
+		SELECT	COUNT(manage_id)
+		FROM	tb_add_book_manage
+		WHERE	emp_writer_id = #{empWriterId}
+		<if test="addBookId != 0">
+		AND		add_book_id = #{addBookId}
+		</if>
+		AND		manage_st = 1
+	</select>
+	
+	<select id="selectEmpForAddBook" resultType="com.joinwork.addbook.command.AddBookEmpCommand">
+		SELECT
+			        A.EMP_NAME
+			       ,A.EMP_HP        
+			       ,A.EMP_PICTURE   
+			       ,A.EMP_EMAIL     
+			       ,B.CODE_Name as officialName
+			       ,C.DEPT_NAME
+		FROM		TB_EMP A, TB_CODE B, TB_DEPT C
+		WHERE   	A.CODE_OFFICIAL_ID = B.CODE_ID
+		AND     	A.DEPT_ID = C.DEPT_ID
+		AND			A.EMP_ST IN (1,4)
+		ORDER BY 	A.EMP_ID DESC
+	</select>
+	
+	<select id="dupleCheckAddBookTitle" parameterType="addBook" resultType="int">
+		SELECT
+		   		count(add_book_title)
+		FROM
+		    	tb_add_book
+		WHERE     
+		    	add_book_title = #{addBookTitle}
+        AND     emp_writer_id = #{empWriterId} 
+	</select>
+	
+	<select id="selectAddBookByAddBookId" parameterType="addBook" resultType="addBook">
+		SELECT
+			    add_book_id
+			   ,add_book_title
+			   ,emp_writer_id
+			   ,code_add_id
+		FROM
+		    	tb_add_book
+		WHERE	1=1	
+    	<if test="addBookId != null and !''.equals(addBookId)">
+		AND		add_book_id = #{addBookId}
+    	</if>
+    	<if test='empWriterId != null and !"".equals(empWriterId)'>
+    	AND		emp_writer_id = #{empWriterId}
+    	</if>
+	
+	</select>
+	
+	<update id="updateAddBookManage" parameterType="addBook">
+		UPDATE tb_add_book_manage
+		    <set>
+		    	<if test='manageDisplayName != null and !"".equals(manageDisplayName)'>
+			    manage_display_name = #{manageDisplayName}
+		    	</if>
+		    	<if test='manageHp != null and !"".equals(manageHp)'>
+			   ,manage_hp = #{manageHp}
+		    	</if>
+		    	<if test='manageEmail != null and !"".equals(manageEmail)'>
+			   ,manage_email = #{manageEmail}
+		    	</if>
+		    	<if test='manageRemark != null and !"".equals(manageRemark)'>
+			   ,manage_remark = #{manageRemark}
+		    	</if>
+		    	<if test='manageOfficialName != null and !"".equals(manageOfficialName)'>
+			   ,manage_official_name = #{manageOfficialName}
+		    	</if>
+		    	<if test='manageDeptName != null and !"".equals(manageDeptName)'>
+			   ,manage_dept_name = #{manageDeptName}
+		    	</if>
+		    	<if test='addBookId != null and !"".equals(addBookId)'>
+			   ,add_book_id = #{addBookId}
+		    	</if>
+		    </set>
+		WHERE
+				manage_id = #{manageId}
+		AND		emp_writer_id = #{empWriterId}
+    
+	</update>
+	
+	<update id="updateAddBookIdToZero" parameterType="addBook">
+		UPDATE tb_add_book_manage
+	    SET
+		        add_book_id = 0
+		WHERE
+		    	add_book_id = #{addBookId}
+		AND		emp_writer_id = #{empWriterId}
+	</update>
+	
+	<update id="updateAddBookGroup" parameterType="addBook">
+		UPDATE	tb_add_book
+	    SET		add_book_title = #{addBookTitle}
+		WHERE	add_book_id = #{addBookId}
+		AND		emp_writer_id = #{empWriterId}
+		
+	</update>
+	
+	<update id="removeAddBookGroup" parameterType="addBook">
+		DELETE FROM tb_add_book
+		WHERE
+		    	add_book_id = #{addBookId}
+	    AND   	emp_writer_id = #{empWriterId}
+	    AND   	code_add_id = 'A02'
+	</update>
+	
+	<update id="deletePrivateAddBook" parameterType="addBook">
+		UPDATE tb_add_book_manage
+    	SET
+		        manage_st = 0
+		WHERE
+		    	manage_id = #{manageId}
+	</update>
+	
+	<delete id="deleteAddBookManageBeforeSync" parameterType="addBook">
+		DELETE FROM tb_add_book_manage
+		WHERE		add_book_id = #{addBookId}
+	</delete>
+	
+	
+</mapper>
+
+

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.joinwork.common.dao.DashboardDAO">
+
+<insert id="insertDashboard" parameterType="emp">
+	INSERT INTO tb_dashboard (
+	    emp_id
+	   ,dashboard_issue
+	   ,dashboard_reservation
+	   ,dashboard_board
+	) VALUES (
+	    #{empId}
+	   ,2
+	   ,3
+	   ,1
+	)
+</insert>
+	
+<update id="updateDashboard" parameterType="dashboard">
+	UPDATE tb_dashboard
+	    SET
+	         dashboard_duty = #{dashboardDuty}        
+			,dashboard_issue = #{dashboardIssue}
+			,dashboard_project = #{dashboardProject}
+			,dashboard_approval = #{dashboardApproval}
+			,dashboard_reservation = #{dashboardReservation}
+			,dashboard_board = #{dashboardBoard}
+	WHERE
+	    emp_id = #{empId}
+</update>	
+	
+<select id="selectDashboard" parameterType="emp" resultType="dashboard">
+	SELECT
+	    emp_id
+	   ,dashboard_duty
+	   ,dashboard_issue
+	   ,dashboard_project
+	   ,dashboard_approval
+	   ,dashboard_reservation
+	   ,dashboard_board
+	FROM
+	    tb_dashboard
+	WHERE emp_id = #{empId}
+</select>
+
+
+
+</mapper>
+
+
