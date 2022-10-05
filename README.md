@@ -36,7 +36,7 @@
 - JXLS, POI - 엑셀 다운로드
 
 #### 6. ERD 설계
-> https://www.erdcloud.com/d/P9EAPvABu8y3n5xeK
+> https://www.erdcloud.com/d/zupWEWNb6JhpWzxsd
    
 ## 기능 소개
 ### 1. 대시보드
